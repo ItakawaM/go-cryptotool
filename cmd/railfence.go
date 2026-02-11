@@ -17,18 +17,45 @@ var (
 	key      int
 )
 
-// railfenceCmd represents the railfence command
+// railfenceCmd represents the railfence command.
 var railfenceCmd = &cobra.Command{
 	Use:   "railfence",
-	Short: "Classic railfence cipher",
-	Long:  `Description WIP`, // TODO: Description
+	Short: "Encrypt or decrypt data using the Rail Fence cipher",
+	// Thanks, ChatGPT
+	Long: `The Rail Fence cipher is a classical transposition cipher that writes
+plaintext in a zigzag pattern across multiple rails and then reads
+it row by row to produce the ciphertext.
+
+This command allows encryption and decryption of messages or files
+using a specified number of rails (key).
+`,
 }
 
 // encryptCmd represents the encrypt command
 var encryptCmd = &cobra.Command{
 	Use:   "encrypt",
 	Short: "Encrypt a given message with a key",
-	Long:  `Description WIP`, // TODO: Description
+	Long: `This command allows encryption of messages or files
+using a specified number of rails (key).
+
+A key of 1 results in no transformation.
+
+Examples:
+
+  Encrypt text:
+    1. cipher railfence --encrypt --key 3 --message "Hello World"
+
+    2. echo "Hello World" | cipher railfence --encrypt --key 3
+	
+  Encrypt a file:
+    1. cipher railfence --encrypt --key 5 --file input.txt
+
+Notes:
+
+  • The key must be >= 1
+  • Larger keys increase computation time
+  • For very large files, performance depends on system memory
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 		startTime := time.Now()
 

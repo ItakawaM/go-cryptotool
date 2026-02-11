@@ -10,7 +10,9 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "go-cryptotool",
 	Short: "Classic encryption ciphers in Go!",
-	Long:  `WORK IN PROGRESS`, // TODO: Create a nice Long description
+	Long: `ItakawaM
+	
+	Work In Progress`, // TODO: Create a nice Long description
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
