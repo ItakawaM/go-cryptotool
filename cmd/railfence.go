@@ -1,27 +1,63 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
-	ciphers "github.com/ItakawaM/go-cryptotool/ciphers"
+	"github.com/ItakawaM/go-cryptotool/ciphers"
+	"github.com/ItakawaM/go-cryptotool/engine"
 	"github.com/spf13/cobra"
 )
 
 var (
-	message  string
-	filename string
-	key      int
+	message        string
+	inputFilePath  string
+	outputFilePath string
+	key            int
+	// blocksize int
 )
+
+func addFlags(command *cobra.Command, mode string) {
+	command.Flags().StringVarP(&message, "message", "m", "", fmt.Sprintf("Message to %s", mode))
+	command.Flags().StringVarP(&inputFilePath, "input", "i", "", fmt.Sprintf("Path to file to %s", mode))
+	command.Flags().StringVarP(&outputFilePath, "output", "o", "", "Path to output file")
+	command.Flags().IntVarP(&key, "key", "k", 0, "Cipher algorithm key")
+
+	command.MarkFlagRequired("key")
+}
+
+func validateMessageOrInput() error {
+	if message == "" && inputFilePath == "" {
+		return fmt.Errorf("must provide --message or --input")
+	}
+
+	if message != "" && inputFilePath != "" {
+		return fmt.Errorf("cannot use both --message and --input")
+	}
+
+	if message != "" && outputFilePath != "" {
+		return fmt.Errorf("cannot use both --message and --output")
+	}
+
+	if inputFilePath != "" && outputFilePath == "" {
+		return fmt.Errorf("--output is required with --input")
+	}
+
+	return nil
+}
+
+func validateKey() error {
+	if key < 1 {
+		return fmt.Errorf("provided --key must be >=1")
+	}
+
+	return nil
+}
 
 // railfenceCmd represents the railfence command.
 var railfenceCmd = &cobra.Command{
 	Use:   "railfence",
 	Short: "Encrypt or decrypt data using the Rail Fence cipher",
-	// Thanks, ChatGPT
 	Long: `The Rail Fence cipher is a classical transposition cipher that writes
 plaintext in a zigzag pattern across multiple rails and then reads
 it row by row to produce the ciphertext.
@@ -42,13 +78,11 @@ A key of 1 results in no transformation.
 
 Examples:
 
-  Encrypt text:
-    1. cipher railfence --encrypt --key 3 --message "Hello World"
-
-    2. echo "Hello World" | cipher railfence --encrypt --key 3
-	
-  Encrypt a file:
-    1. cipher railfence --encrypt --key 5 --file input.txt
+  Decrypt text:
+    1. cipher railfence encrypt --key 3 --message "Canabis"
+  
+  Decrypt a file:
+    1. cipher railfence encrypt --key 5 --input file.txt --output file.enc
 
 Notes:
 
@@ -56,54 +90,108 @@ Notes:
   • Larger keys increase computation time
   • For very large files, performance depends on system memory
 `,
-	Run: func(cmd *cobra.Command, args []string) {
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := validateMessageOrInput(); err != nil {
+			return err
+		}
+
+		if err := validateKey(); err != nil {
+			return err
+		}
+
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
 		startTime := time.Now()
 
-		stat, _ := os.Stdin.Stat()
-		if message == "" && filename == "" && (stat.Mode()&os.ModeCharDevice) == 0 {
-			scanner := bufio.NewScanner(os.Stdin)
-			var builder strings.Builder
-			for scanner.Scan() {
-				builder.WriteString(scanner.Text())
-			}
-
-			message = builder.String()
-		}
-
-		if message == "" && filename == "" {
-			fmt.Println("Please provide an input to encrypt!")
-			os.Exit(1)
-		}
-
-		if key <= 0 {
-			fmt.Printf("Invalid key provided: [%d] is not viable", key)
-			os.Exit(1)
-		}
-
+		railFenceCipher := ciphers.NewRailFenceCipher(key)
 		if message != "" {
-			encryptedMessage := ciphers.RailFenceEncryptMessage(message, key)
-			fmt.Println(encryptedMessage)
+			bytes := []byte(message)
+			if err := railFenceCipher.DecryptBlock(bytes); err != nil {
+				return err
+			}
+
+			fmt.Println(string(bytes))
 		} else {
-			if err := ciphers.RailFenceEncryptFile(filename, key); err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+			err := engine.ProcessFile("encrypt", inputFilePath, outputFilePath, railFenceCipher)
+			if err != nil {
+				return err
 			}
 		}
 
-		elapsed := time.Since(startTime)
-		fmt.Printf("Encrypting Took: %s", elapsed)
+		if Verbose {
+			fmt.Printf("Time: %s", time.Since(startTime))
+		}
+
+		return nil
+	},
+}
+
+// decryptCmd represents the encrypt command
+var decryptCmd = &cobra.Command{
+	Use:   "decrypt",
+	Short: "Decrypt a given message with a key",
+	// TODO: Change Long Description
+	Long: `This command allows decryption of messages or files
+using a specified number of rails (key).
+
+Examples:
+
+  Decrypt text:
+    1. cipher railfence decrypt --key 3 --message "nsaaiCb"
+  
+  Decrypt a file:
+    1. cipher railfence decrypt --key 5 --input file.enc --output file.txt
+
+Notes:
+
+  • The key must be >= 1
+  • Larger keys increase computation time
+  • For very large files, performance depends on system memory
+`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := validateMessageOrInput(); err != nil {
+			return err
+		}
+
+		if err := validateKey(); err != nil {
+			return err
+		}
+
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		startTime := time.Now()
+
+		railFenceCipher := ciphers.NewRailFenceCipher(key)
+		if message != "" {
+			bytes := []byte(message)
+			if err := railFenceCipher.EncryptBlock(bytes); err != nil {
+				return err
+			}
+
+			fmt.Println(string(bytes))
+		} else {
+			err := engine.ProcessFile("decrypt", inputFilePath, outputFilePath, railFenceCipher)
+			if err != nil {
+				return err
+			}
+		}
+
+		if Verbose {
+			fmt.Printf("Time: %s", time.Since(startTime))
+		}
+
+		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(railfenceCmd)
 	railfenceCmd.AddCommand(encryptCmd)
+	railfenceCmd.AddCommand(decryptCmd)
 
-	encryptCmd.Flags().StringVarP(&message, "message", "m", "", "Message to encrypt")
-	encryptCmd.Flags().StringVarP(&filename, "file", "f", "", "File to encrypt")
-	encryptCmd.Flags().IntVarP(&key, "key", "k", 0, "Key to use")
+	addFlags(encryptCmd, "encrypt")
+	addFlags(decryptCmd, "decrypt")
 
-	encryptCmd.MarkFlagRequired("key")
-
-	encryptCmd.MarkFlagsMutuallyExclusive("file", "message")
 }
