@@ -22,29 +22,29 @@ func NewJob(offset int64, size int64) Job {
 	return Job{Offset: offset, Size: size}
 }
 
-func Worker(mode string, blockCipher ciphers.BlockCipher, inFile *os.File, outfile *os.File, jobs <-chan Job, waitGroup *sync.WaitGroup) {
+func Worker(mode string, blockCipher ciphers.BlockCipher, inFile *os.File, outfile *os.File, jobs <-chan Job, waitGroup *sync.WaitGroup, buffer []byte) {
 	defer waitGroup.Done()
 
 	for job := range jobs {
-		buffer := make([]byte, job.Size)
+		readBuffer := buffer[:job.Size]
 
-		if _, err := inFile.ReadAt(buffer, job.Offset); err != nil && err != io.EOF {
+		if _, err := inFile.ReadAt(readBuffer, job.Offset); err != nil && err != io.EOF {
 			log.Fatalln("Reading block error: ", err)
 		}
 
 		switch mode {
 		case "encrypt":
-			if err := blockCipher.EncryptBlock(buffer); err != nil {
+			if err := blockCipher.EncryptBlock(readBuffer); err != nil {
 				log.Fatalln("Encrypting block error: ", err)
 			}
 
 		case "decrypt":
-			if err := blockCipher.DecryptBlock(buffer); err != nil {
+			if err := blockCipher.DecryptBlock(readBuffer); err != nil {
 				log.Fatalln("Decrypting block error: ", err)
 			}
 		}
 
-		if _, err := outfile.WriteAt(buffer, job.Offset); err != nil {
+		if _, err := outfile.WriteAt(readBuffer, job.Offset); err != nil {
 			log.Fatalln("Writing block error: ", err)
 		}
 	}

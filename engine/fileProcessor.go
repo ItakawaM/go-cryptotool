@@ -59,9 +59,14 @@ func ProcessFile(mode string, inFilePath, outFilePath string, blockCipher cipher
 	jobs := make(chan Job, numWorkers)
 	var waitGroup sync.WaitGroup
 
-	for range numWorkers {
+	buffers := make([][]byte, numWorkers)
+	for i := range numWorkers {
+		buffers[i] = make([]byte, ciphers.DefaultBlockSize)
+	}
+
+	for i := range numWorkers {
 		waitGroup.Add(1)
-		go Worker(mode, blockCipher, inFile, outFile, jobs, &waitGroup)
+		go Worker(mode, blockCipher, inFile, outFile, jobs, &waitGroup, buffers[i])
 	}
 
 	for offset := int64(0); offset < fileSize; offset += ciphers.DefaultBlockSize {
