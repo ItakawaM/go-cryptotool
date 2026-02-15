@@ -1,7 +1,5 @@
 package ciphers
 
-const KB = 1024
-
 type Mode int
 
 const (
@@ -9,7 +7,7 @@ const (
 	Decrypt
 )
 
-func ModeToString(mode Mode) string {
+func (mode Mode) ToString() string {
 	if mode == Encrypt {
 		return "encrypt"
 	}

@@ -41,6 +41,7 @@ func railfencePreRunE() error {
 	if !slices.Contains(allowedBlock, blockSize) {
 		return fmt.Errorf("Provided block size[%d] is not viable!", blockSize)
 	}
+	blockSize *= 1024 // Convert to KB
 
 	return nil
 }
@@ -48,7 +49,7 @@ func railfencePreRunE() error {
 // Logic
 func railfenceRunE(mode ciphers.Mode) error {
 	if isVerbose {
-		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", ciphers.ModeToString(mode)))()
+		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", ciphers.Mode.ToString(mode)))()
 	}
 
 	railFenceCipher := ciphers.NewRailFenceCipher(key)

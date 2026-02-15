@@ -5,7 +5,9 @@ type RailFenceCipher struct {
 }
 
 func NewRailFenceCipher(key int) *RailFenceCipher {
-	return &RailFenceCipher{Key: key}
+	return &RailFenceCipher{
+		Key: key,
+	}
 }
 
 func (rfCipher *RailFenceCipher) EncryptBlock(block []byte, buffer []byte) error {
@@ -44,6 +46,7 @@ func (rfCipher *RailFenceCipher) DecryptBlock(block []byte, buffer []byte) error
 	blockSize := len(block)
 
 	// Count offset of each row
+	// TODO: Fix this bullshit
 	railOffset := make([]int, rfCipher.Key)
 	currentOffset := 0
 	for rail := rfCipher.Key - 1; rail >= 0; rail-- {
@@ -60,14 +63,12 @@ func (rfCipher *RailFenceCipher) DecryptBlock(block []byte, buffer []byte) error
 		}
 	}
 
-	usedInRail := make([]int, rfCipher.Key)
 	currentRail := 0
 	direction := 1
 
 	for index := range blockSize {
-		blockIndex := railOffset[currentRail] + usedInRail[currentRail]
-		buffer[index] = block[blockIndex]
-		usedInRail[currentRail] += 1
+		buffer[index] = block[railOffset[currentRail]]
+		railOffset[currentRail] += 1
 
 		switch currentRail {
 		case 0:

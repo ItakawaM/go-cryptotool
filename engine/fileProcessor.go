@@ -10,8 +10,6 @@ import (
 )
 
 func ProcessFile(mode ciphers.Mode, inFilePath, outFilePath string, blockCipher ciphers.BlockCipher, blockSize int64) error {
-	blockSize *= ciphers.KB
-
 	inFile, err := os.Open(inFilePath)
 	if err != nil {
 		return err
@@ -63,14 +61,15 @@ func ProcessFile(mode ciphers.Mode, inFilePath, outFilePath string, blockCipher 
 	jobs := make(chan Job, numWorkers)
 	var waitGroup sync.WaitGroup
 
-	buffers := make([][]byte, numWorkers)
+	buffers := make([][]byte, numWorkers*2)
 	for i := range numWorkers {
-		buffers[i] = make([]byte, blockSize)
+		buffers[i*2] = make([]byte, blockSize)
+		buffers[i*2+1] = make([]byte, blockSize)
 	}
 
 	for i := range numWorkers {
 		waitGroup.Add(1)
-		go Worker(mode, blockCipher, inFile, outFile, jobs, &waitGroup, buffers[i])
+		go Worker(mode, blockCipher, inFile, outFile, jobs, &waitGroup, buffers, i)
 	}
 
 	for offset := int64(0); offset < fileSize; offset += blockSize {
