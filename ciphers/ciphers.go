@@ -15,6 +15,13 @@ func (mode Mode) ToString() string {
 }
 
 type BlockCipher interface {
-	EncryptBlock([]byte, []byte) error
-	DecryptBlock([]byte, []byte) error
+	GetBuffers(workerID int) ([]byte, []byte)
+	GetBlockSize() int
+	GetNumWorkers() int
+	EncryptBlock(dst []byte, src []byte) error
+	DecryptBlock(dst []byte, src []byte) error
+}
+
+type PermutationCipher interface {
+	BuildPermutationTable()
 }

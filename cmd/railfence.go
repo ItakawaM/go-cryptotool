@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 	"slices"
 
 	"github.com/ItakawaM/go-cryptotool/benchmark"
@@ -17,7 +18,7 @@ var (
 	outputFilePath string
 	key            int
 	blockSize      int
-	allowedBlock   = []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
+	allowedBlock   []int = []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}
 )
 
 func addFlags(command *cobra.Command, mode string) {
@@ -52,25 +53,28 @@ func railfenceRunE(mode ciphers.Mode) error {
 		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", ciphers.Mode.ToString(mode)))()
 	}
 
-	railFenceCipher := ciphers.NewRailFenceCipher(key)
 	if message != "" {
-		bytes := []byte(message)
-		buffer := make([]byte, len(bytes))
+		railFenceCipher := ciphers.NewRailFenceCipher(key, len(message), 1)
+		railFenceCipher.BuildPermutationTable()
+		src := []byte(message)
+		dst := make([]byte, len(src))
 
 		var err error
 		switch mode {
 		case ciphers.Encrypt:
-			err = railFenceCipher.EncryptBlock(bytes, buffer)
+			err = railFenceCipher.EncryptBlock(dst, src)
 		case ciphers.Decrypt:
-			err = railFenceCipher.DecryptBlock(bytes, buffer)
+			err = railFenceCipher.DecryptBlock(dst, src)
 		}
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(string(bytes))
+		fmt.Println(string(dst))
 	} else {
-		err := engine.ProcessFile(mode, inputFilePath, outputFilePath, railFenceCipher, int64(blockSize))
+		railFenceCipher := ciphers.NewRailFenceCipher(key, blockSize, runtime.NumCPU())
+		railFenceCipher.BuildPermutationTable()
+		err := engine.ProcessFile(railFenceCipher, mode, inputFilePath, outputFilePath)
 		if err != nil {
 			return err
 		}

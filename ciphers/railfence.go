@@ -1,85 +1,111 @@
 package ciphers
 
 type RailFenceCipher struct {
-	Key int
+	Key              int
+	BlockSize        int
+	Buffers          [][]byte
+	PermutationTable []int
+	InverseTable     []int
 }
 
-func NewRailFenceCipher(key int) *RailFenceCipher {
+func NewRailFenceCipher(key int, blockSize int, numCPU int) *RailFenceCipher {
+	buffers := make([][]byte, numCPU*2)
+	for i := range buffers {
+		buffers[i] = make([]byte, blockSize)
+	}
+	permutationTable := make([]int, blockSize)
+	inverseTable := make([]int, blockSize)
+
 	return &RailFenceCipher{
-		Key: key,
+		Key:              key,
+		BlockSize:        blockSize,
+		Buffers:          buffers,
+		PermutationTable: permutationTable,
+		InverseTable:     inverseTable,
 	}
 }
 
-func (rfCipher *RailFenceCipher) EncryptBlock(block []byte, buffer []byte) error {
+func (rfCipher *RailFenceCipher) GetBuffers(workerID int) ([]byte, []byte) {
+	return rfCipher.Buffers[workerID*2], rfCipher.Buffers[workerID*2+1]
+}
+
+func (rfCipher *RailFenceCipher) GetBlockSize() int {
+	return rfCipher.BlockSize
+}
+
+func (rfCipher *RailFenceCipher) GetNumWorkers() int {
+	return len(rfCipher.Buffers) / 2
+}
+
+func (rfCipher *RailFenceCipher) BuildPermutationTable() {
 	if rfCipher.Key <= 1 {
-		return nil
+		return
+		// Reverse order when Key >= BlockSize
+	} else if rfCipher.Key >= rfCipher.BlockSize {
+		// Blocks are always even numbers
+		for index := 0; index < rfCipher.BlockSize/2; index++ {
+			rfCipher.PermutationTable[index] = rfCipher.BlockSize - 1 - index
+			rfCipher.InverseTable[rfCipher.BlockSize-1-index] = index
+		}
+
+		return
 	}
 
 	cycle := 2 * (rfCipher.Key - 1)
-	blockSize := len(block)
 
-	index := 0
-	for rail := rfCipher.Key - 1; rail >= 0; rail-- {
-		for blockIndex := rail; blockIndex < blockSize; blockIndex += cycle {
-			buffer[index] = block[blockIndex]
-			index += 1
-
-			// if middle rail
-			secondBlockIndex := blockIndex + cycle - 2*rail
-			if rail != 0 && rail != rfCipher.Key-1 && secondBlockIndex < blockSize {
-				buffer[index] = block[secondBlockIndex]
-				index += 1
-			}
+	rails := make([]int, rfCipher.BlockSize)
+	for index := 0; index < rfCipher.BlockSize; index++ {
+		cyclePosition := index % cycle
+		if cyclePosition < rfCipher.Key {
+			rails[index] = cyclePosition
+		} else {
+			rails[index] = cycle - cyclePosition
 		}
 	}
 
-	copy(block, buffer)
-	return nil
-}
-
-func (rfCipher *RailFenceCipher) DecryptBlock(block []byte, buffer []byte) error {
-	if rfCipher.Key <= 1 || len(block) == 0 {
-		return nil
-	}
-
-	cycle := 2 * (rfCipher.Key - 1)
-	blockSize := len(block)
-
-	// Count offset of each row
-	// TODO: Fix this bullshit
 	railOffset := make([]int, rfCipher.Key)
 	currentOffset := 0
 	for rail := rfCipher.Key - 1; rail >= 0; rail-- {
 		railOffset[rail] = currentOffset
 
-		for blockIndex := rail; blockIndex < blockSize; blockIndex += cycle {
+		for index := rail; index < rfCipher.BlockSize; index += cycle {
 			currentOffset += 1
 
 			if rail != 0 && rail != rfCipher.Key-1 {
-				if secondBlockIndex := blockIndex + cycle - 2*rail; secondBlockIndex < blockSize {
+				if secondIndex := index + cycle - 2*rail; secondIndex < rfCipher.BlockSize {
 					currentOffset += 1
 				}
 			}
 		}
 	}
 
-	currentRail := 0
-	direction := 1
+	for index := 0; index < rfCipher.BlockSize; index++ {
+		rfCipher.PermutationTable[index] = railOffset[rails[index]]
+		rfCipher.InverseTable[railOffset[rails[index]]] = index
+		railOffset[rails[index]]++
+	}
+}
 
-	for index := range blockSize {
-		buffer[index] = block[railOffset[currentRail]]
-		railOffset[currentRail] += 1
-
-		switch currentRail {
-		case 0:
-			direction = 1
-		case rfCipher.Key - 1:
-			direction = -1
-		}
-
-		currentRail += direction
+func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
+	if rfCipher.Key <= 1 {
+		return nil
 	}
 
-	copy(block, buffer)
+	for index := 0; index < rfCipher.BlockSize; index++ {
+		dst[rfCipher.PermutationTable[index]] = src[index]
+	}
+
+	return nil
+}
+
+func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
+	if rfCipher.Key <= 1 {
+		return nil
+	}
+
+	for index := 0; index < rfCipher.BlockSize; index++ {
+		dst[rfCipher.InverseTable[index]] = src[index]
+	}
+
 	return nil
 }
