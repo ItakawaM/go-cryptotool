@@ -29,11 +29,13 @@ func addFlags(command *cobra.Command, mode string) {
 	command.Flags().StringVarP(&outputFilePath, "output", "o", "", "Path to output file")
 	command.Flags().IntVarP(&key, "key", "k", 0, "Cipher algorithm key")
 	command.Flags().IntVarP(&blockSize, "block", "b", 64, "Block size (KB): 16 32 64 128 256 512 1024 2048 4096 8192 16384")
-	command.Flags().IntVarP(&numCPU, "threads", "t", runtime.NumCPU(), "Amount of threads to be used")
+	command.Flags().IntVarP(&numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
 
 	command.MarkFlagRequired("key")
 	command.MarkFlagsRequiredTogether("input", "output")
-	command.MarkFlagsMutuallyExclusive("message", "input", "threads", "block")
+	command.MarkFlagsMutuallyExclusive("message", "input")
+	command.MarkFlagsMutuallyExclusive("message", "block")
+	command.MarkFlagsMutuallyExclusive("message", "threads")
 }
 
 func railfencePreRunE() error {
