@@ -60,7 +60,7 @@ func railfencePreRunE() error {
 // Logic
 func railfenceRunE(mode ciphers.Mode) error {
 	if isVerbose {
-		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", ciphers.Mode.ToString(mode)))()
+		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", mode))()
 	}
 
 	if message != "" {

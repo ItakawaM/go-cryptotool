@@ -7,7 +7,7 @@ const (
 	Decrypt
 )
 
-func (mode Mode) ToString() string {
+func (mode Mode) String() string {
 	if mode == Encrypt {
 		return "encrypt"
 	}
