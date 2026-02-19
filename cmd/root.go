@@ -26,4 +26,6 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&isVerbose, "verbose", "v", false, "Displays additional info")
+
+	rootCmd.AddCommand(NewRailFenceCommand())
 }
