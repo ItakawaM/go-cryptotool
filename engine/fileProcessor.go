@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"io"
 	"os"
 	"sync"
 
 	"github.com/ItakawaM/go-cryptotool/ciphers"
+	"github.com/ItakawaM/go-cryptotool/ciphers/padding"
 )
 
 func ProcessFile(blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFilePath, outFilePath string) error {
@@ -29,31 +29,6 @@ func ProcessFile(blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFilePath,
 	}
 	fileSize := info.Size()
 
-	// For small files
-	if fileSize < int64(blockCipher.GetBlockSize()) {
-		src := make([]byte, blockSize)
-		dst := make([]byte, blockSize)
-
-		if _, err := inFile.Read(src); err != nil && err != io.EOF {
-			return err
-		}
-
-		switch mode {
-		case ciphers.Encrypt:
-			if err := blockCipher.EncryptBlock(dst, src); err != nil {
-				return err
-			}
-
-		case ciphers.Decrypt:
-			if err := blockCipher.DecryptBlock(dst, src); err != nil {
-				return err
-			}
-		}
-
-		_, err := outFile.WriteAt(dst, 0)
-		return err
-	}
-
 	fullBlocks := fileSize / blockSize
 	remainder := fileSize % blockSize
 	if err := outFile.Truncate(fileSize); err != nil {
@@ -70,33 +45,42 @@ func ProcessFile(blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFilePath,
 	}
 
 	for offset := int64(0); offset < fullBlocks*blockSize; offset += blockSize {
-		jobs <- NewJob(offset, blockSize)
+		jobs <- NewJob(offset)
 	}
 
 	close(jobs)
 	waitGroup.Wait()
 
-	if remainder > 0 {
-		src := make([]byte, blockSize)
-		dst := make([]byte, blockSize)
-
+	src, dst := blockCipher.GetBuffers(0)
+	switch mode {
+	case ciphers.Encrypt:
+		// Padding last block
 		if _, err := inFile.ReadAt(src[:remainder], fullBlocks*blockSize); err != nil {
 			return err
 		}
+		src = padding.PKCS7Pad(src[:remainder], int(blockSize))
 
-		switch mode {
-		case ciphers.Encrypt:
-			if err := blockCipher.EncryptBlock(dst, src); err != nil {
-				return err
-			}
-
-		case ciphers.Decrypt:
-			if err := blockCipher.DecryptBlock(dst, src); err != nil {
-				return err
-			}
+		if err := blockCipher.EncryptBlock(dst, src); err != nil {
+			return err
 		}
 
 		if _, err := outFile.WriteAt(dst, fullBlocks*blockSize); err != nil {
+			return err
+		}
+
+	case ciphers.Decrypt:
+		// This block is already decrypted
+		if _, err := outFile.ReadAt(src, (fullBlocks-1)*blockSize); err != nil {
+			return err
+		}
+
+		// Verify pad
+		src, err = padding.PKCS7Unpad(src, int(blockSize))
+		if err != nil {
+			return err
+		}
+
+		if err := outFile.Truncate((fullBlocks-1)*blockSize + int64(len(src))); err != nil {
 			return err
 		}
 	}

@@ -12,9 +12,11 @@ type Job struct {
 	Offset int64
 }
 
-func NewJob(offset int64, size int64) Job {
+func NewJob(offset int64) Job {
 	return Job{Offset: offset}
 }
+
+// TODO: Remove log.Fatalln from Workers and create a separate error channel
 
 func Worker(workerID int, blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFile *os.File, outFile *os.File, jobs <-chan Job, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
