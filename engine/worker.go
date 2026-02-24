@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"sync"
 
@@ -16,31 +16,29 @@ func NewJob(offset int64) Job {
 	return Job{Offset: offset}
 }
 
-// TODO: Remove log.Fatalln from Workers and create a separate error channel
-
-func Worker(workerID int, blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFile *os.File, outFile *os.File, jobs <-chan Job, waitGroup *sync.WaitGroup) {
+func Worker(workerID int, blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFile *os.File, outFile *os.File, jobs <-chan Job, errors chan<- error, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
 
 	src, dst := blockCipher.GetBuffers(workerID)
 	for job := range jobs {
 		if _, err := inFile.ReadAt(src, job.Offset); err != nil {
-			log.Fatalln("Reading block error: ", err)
+			errors <- fmt.Errorf("worker %d block read error at %d: %w", workerID, job.Offset, err)
 		}
 
 		switch mode {
 		case ciphers.Encrypt:
 			if err := blockCipher.EncryptBlock(dst, src); err != nil {
-				log.Fatalln("Encrypting block error: ", err)
+				errors <- fmt.Errorf("worker %d block encrypt error at %d: %w", workerID, job.Offset, err)
 			}
 
 		case ciphers.Decrypt:
 			if err := blockCipher.DecryptBlock(dst, src); err != nil {
-				log.Fatalln("Decrypting block error: ", err)
+				errors <- fmt.Errorf("worker %d block decrypt error at %d: %w", workerID, job.Offset, err)
 			}
 		}
 
 		if _, err := outFile.WriteAt(dst, job.Offset); err != nil {
-			log.Fatalln("Writing block error: ", err)
+			errors <- fmt.Errorf("worker %d block write error at %d: %w", workerID, job.Offset, err)
 		}
 	}
 }

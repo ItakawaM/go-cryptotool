@@ -37,19 +37,29 @@ func ProcessFile(blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFilePath,
 
 	numWorkers := blockCipher.GetNumWorkers()
 	jobs := make(chan Job, numWorkers)
+	errors := make(chan error, numWorkers)
 	var waitGroup sync.WaitGroup
 
 	for i := range numWorkers {
 		waitGroup.Add(1)
-		go Worker(i, blockCipher, mode, inFile, outFile, jobs, &waitGroup)
+		go Worker(i, blockCipher, mode, inFile, outFile, jobs, errors, &waitGroup)
 	}
 
 	for offset := int64(0); offset < fullBlocks*blockSize; offset += blockSize {
 		jobs <- NewJob(offset)
 	}
-
 	close(jobs)
-	waitGroup.Wait()
+
+	go func() {
+		waitGroup.Wait()
+		close(errors)
+	}()
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
 
 	src, dst := blockCipher.GetBuffers(0)
 	switch mode {
