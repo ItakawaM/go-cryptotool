@@ -18,7 +18,7 @@ type caesarParams struct {
 }
 
 func NewCaesarCommand() *cobra.Command {
-	railfenceCmd := &cobra.Command{
+	caesarCmd := &cobra.Command{
 		Use:   "caesar",
 		Short: "Encrypt or decrypt data using the Caesar cipher",
 		Long: `The Caesar cipher is a classical substitution cipher that shifts
@@ -33,9 +33,9 @@ This command allows encryption and decryption of messages or files
 using a specified shift value (key).
 `,
 	}
-	railfenceCmd.AddCommand(newCaesarEncryptCommand(), newCaesarDecryptCommand())
+	caesarCmd.AddCommand(newCaesarEncryptCommand(), newCaesarDecryptCommand())
 
-	return railfenceCmd
+	return caesarCmd
 }
 
 func newCaesarEncryptCommand() *cobra.Command {
@@ -57,10 +57,10 @@ A shift of 0 results in no transformation.
 Examples:
 
   Encrypt text:
-    1. cipher caesar encrypt eng 3 "AttackAtDawn"
+    1. cipher caesar encrypt 3 "AttackAtDawn"
 
   Encrypt a file:
-    1. cipher caesar encrypt eng 5 file.txt file.enc
+    1. cipher caesar encrypt 5 file.txt file.enc
 
 Notes:
 
@@ -101,10 +101,10 @@ A shift of 0 results in no transformation.
 Examples:
 
   Decrypt text:
-    1. cipher caesar decrypt eng 3 "DwwdfnDwGdzq"
+    1. cipher caesar decrypt 3 "DwwdfnDwGdzq"
 
   Decrypt a file:
-    1. cipher caesar decrypt eng 5 file.enc file.txt
+    1. cipher caesar decrypt 5 file.enc file.txt
 
 Notes:
 
@@ -171,21 +171,20 @@ func caesarRunE(mode ciphers.Mode, params *caesarParams, args []string) error {
 
 		caesarCipher := ciphers.NewCaesarCipher(params.key, len(message), 1)
 
-		src := []byte(message)
-		dst := make([]byte, len(src))
+		buffer := []byte(message)
 
 		var err error
 		switch mode {
 		case ciphers.Encrypt:
-			err = caesarCipher.EncryptBlock(dst, src)
+			err = caesarCipher.EncryptBlock(buffer, buffer)
 		case ciphers.Decrypt:
-			err = caesarCipher.DecryptBlock(dst, src)
+			err = caesarCipher.DecryptBlock(buffer, buffer)
 		}
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(string(dst))
+		fmt.Println(string(buffer))
 	} else {
 		inFilePath := args[1]
 		outFilePath := args[2]
