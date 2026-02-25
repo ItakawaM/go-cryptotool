@@ -8,7 +8,7 @@ import (
 
 func PKCS7Pad(data []byte, blockSize int) []byte {
 	paddingLen := blockSize - (len(data) % blockSize)
-	pad := bytes.Repeat([]byte{byte(0)}, paddingLen-4)
+	pad := bytes.Repeat([]byte{byte(0x20)}, paddingLen-4)
 
 	padBlock := make([]byte, 4)
 	binary.BigEndian.PutUint32(padBlock, uint32(paddingLen))
