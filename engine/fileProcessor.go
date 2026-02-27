@@ -9,22 +9,20 @@ import (
 )
 
 type BlockEngine struct {
-	cipher    ciphers.BlockCipher
 	mode      ciphers.Mode
 	blockSize int
 	numCpu    int
 }
 
-func NewBlockEngine(blockCipher ciphers.BlockCipher, mode ciphers.Mode, blockSize int, numCpu int) *BlockEngine {
+func NewBlockEngine(mode ciphers.Mode, blockSize int, numCpu int) *BlockEngine {
 	return &BlockEngine{
-		cipher:    blockCipher,
 		mode:      mode,
 		blockSize: blockSize,
 		numCpu:    numCpu,
 	}
 }
 
-func (be *BlockEngine) ProcessFile(inFilePath, outFilePath string) error {
+func (be *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inFilePath, outFilePath string) error {
 	inFile, err := os.Open(inFilePath)
 	if err != nil {
 		return err
@@ -54,7 +52,7 @@ func (be *BlockEngine) ProcessFile(inFilePath, outFilePath string) error {
 	var waitGroup sync.WaitGroup
 
 	var buffers [][]byte
-	if be.cipher.IsInPlace() {
+	if blockCipher.IsInPlace() {
 		buffers = make([][]byte, be.numCpu)
 	} else {
 		buffers = make([][]byte, be.numCpu*2)
@@ -65,7 +63,7 @@ func (be *BlockEngine) ProcessFile(inFilePath, outFilePath string) error {
 
 	for i := range be.numCpu {
 		waitGroup.Add(1)
-		worker := NewWorker(i, buffers, be.cipher, be.mode, inFile, outFile, jobs, errors, &waitGroup)
+		worker := NewWorker(i, buffers, blockCipher, be.mode, inFile, outFile, jobs, errors, &waitGroup)
 
 		go worker.Start()
 	}
@@ -95,7 +93,7 @@ func (be *BlockEngine) ProcessFile(inFilePath, outFilePath string) error {
 		}
 		src = padding.PKCS7Pad(src[:remainder], int(be.blockSize))
 
-		if err := be.cipher.EncryptBlock(dst, src); err != nil {
+		if err := blockCipher.EncryptBlock(dst, src); err != nil {
 			return err
 		}
 
