@@ -181,7 +181,7 @@ func railfenceRunE(mode ciphers.CipherMode, params *RailFenceParams, args []stri
 			return err
 		}
 
-		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
+		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU, params.notPadding)
 		return engine.ProcessFile(railFenceCipher, inFilePath, outFilePath)
 
 	default:

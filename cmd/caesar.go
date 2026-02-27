@@ -186,7 +186,7 @@ func caesarRunE(mode ciphers.CipherMode, params *CaesarParams, args []string) er
 			return caesarErr
 		}
 
-		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
+		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU, params.notPadding)
 		return engine.ProcessFile(caesarCipher, inFilePath, outFilePath)
 	}
 
