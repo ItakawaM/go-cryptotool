@@ -21,7 +21,7 @@ type Worker struct {
 	src       []byte
 	dst       []byte
 	cipher    ciphers.BlockCipher
-	mode      ciphers.Mode
+	mode      ciphers.CipherMode
 	inFile    *os.File
 	outFile   *os.File
 	jobs      <-chan Job
@@ -29,7 +29,7 @@ type Worker struct {
 	waitGroup *sync.WaitGroup
 }
 
-func NewWorker(workerID int, buffers [][]byte, blockCipher ciphers.BlockCipher, mode ciphers.Mode, inFile *os.File, outFile *os.File, jobs <-chan Job, errors chan<- error, waitGroup *sync.WaitGroup) *Worker {
+func NewWorker(workerID int, buffers [][]byte, blockCipher ciphers.BlockCipher, mode ciphers.CipherMode, inFile *os.File, outFile *os.File, jobs <-chan Job, errors chan<- error, waitGroup *sync.WaitGroup) *Worker {
 	var src, dst []byte
 	if blockCipher.IsInPlace() {
 		src, dst = buffers[workerID], buffers[workerID]

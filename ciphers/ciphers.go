@@ -1,13 +1,13 @@
 package ciphers
 
-type Mode int
+type CipherMode int8
 
 const (
-	Encrypt Mode = iota
+	Encrypt CipherMode = iota
 	Decrypt
 )
 
-func (mode Mode) String() string {
+func (mode CipherMode) String() string {
 	if mode == Encrypt {
 		return "encrypt"
 	}

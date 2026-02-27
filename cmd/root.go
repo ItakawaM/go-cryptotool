@@ -2,22 +2,10 @@ package cmd
 
 import (
 	"os"
-	"runtime"
 
 	"github.com/spf13/cobra"
 )
 
-type BlockCipherParams struct {
-	blockSize int
-	numCPU    int
-}
-
-var allowedBlockSizes = []int{
-	16, 32, 64, 128, 256, 512,
-	1024, 2048, 4096, 8192, 16384,
-}
-
-var isVerbose bool
 var rootCmd = &cobra.Command{
 	Use:   "go-cryptotool",
 	Short: "Classic encryption ciphers in Go!",
@@ -25,11 +13,6 @@ var rootCmd = &cobra.Command{
 	
 	Work In Progress`, // TODO: Create a nice Long description
 
-}
-
-func addFlags(command *cobra.Command, params *BlockCipherParams) {
-	command.Flags().IntVarP(&params.blockSize, "block", "b", 64, "Block size (KB): 16 32 64 128 256 512 1024 2048 4096 8192 16384")
-	command.Flags().IntVarP(&params.numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
 }
 
 func Execute() {

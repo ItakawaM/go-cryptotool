@@ -9,12 +9,12 @@ import (
 )
 
 type BlockEngine struct {
-	mode      ciphers.Mode
+	mode      ciphers.CipherMode
 	blockSize int
 	numCpu    int
 }
 
-func NewBlockEngine(mode ciphers.Mode, blockSize int, numCpu int) *BlockEngine {
+func NewBlockEngine(mode ciphers.CipherMode, blockSize int, numCpu int) *BlockEngine {
 	return &BlockEngine{
 		mode:      mode,
 		blockSize: blockSize,

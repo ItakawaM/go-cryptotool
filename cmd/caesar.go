@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
-	"slices"
 	"strconv"
 
 	"github.com/ItakawaM/go-cryptotool/benchmark"
@@ -75,7 +73,7 @@ Notes:
 			return caesarPreRunE(cmd, params, args)
 		},
 	}
-	addFlags(encryptCmd, &params.BlockCipherParams)
+	params.addFlags(encryptCmd)
 
 	return encryptCmd
 }
@@ -118,7 +116,7 @@ Notes:
 			return caesarPreRunE(cmd, params, args)
 		},
 	}
-	addFlags(decryptCmd, &params.BlockCipherParams)
+	params.addFlags(decryptCmd)
 
 	return decryptCmd
 }
@@ -127,47 +125,40 @@ func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) 
 	key, err := strconv.Atoi(args[0])
 	if err != nil {
 		return err
-	}
-	if key < 0 {
+	} else if key < 0 {
 		return fmt.Errorf("key can not be negative: %d", key)
 	}
-
 	params.key = byte(key % 26)
 
-	if len(args) == 2 {
-		if command.Flags().Changed("block") {
-			return fmt.Errorf("--block can only be used when processing files")
-		}
-
-		if command.Flags().Changed("threads") {
-			return fmt.Errorf("--threads can only be used when processing files")
-		}
-
-		return nil
+	sourceMode, err := modeFromArgs(args)
+	if err != nil {
+		return err
 	}
+	params.mode = sourceMode
 
-	if !slices.Contains(allowedBlockSizes, params.blockSize) {
-		return fmt.Errorf("invalid block size: %d", params.blockSize)
+	switch params.mode {
+	case ModeMessage:
+		return params.parseModeMessageArgs(command)
+	case ModeFiles:
+		return params.parseModeFilesArgs()
+	default:
+		return fmt.Errorf("invalid working mode")
 	}
-
-	if params.numCPU <= 0 {
-		return fmt.Errorf("invalid thread count: %d", params.numCPU)
-	} else if params.numCPU > runtime.NumCPU() {
-		params.numCPU = runtime.NumCPU()
-	}
-
-	return nil
 }
 
-func caesarRunE(mode ciphers.Mode, params *CaesarParams, args []string) error {
+func caesarRunE(mode ciphers.CipherMode, params *CaesarParams, args []string) error {
 	if isVerbose {
 		defer benchmark.MeasurePerformance(fmt.Sprintf("caesar %s", mode))()
 	}
 
-	if len(args) == 2 {
+	switch params.mode {
+	case ModeMessage:
 		message := args[1]
 
-		caesarCipher := ciphers.NewCaesarCipher(params.key)
+		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
+		if caesarErr != nil {
+			return caesarErr
+		}
 
 		buffer := []byte(message)
 
@@ -183,13 +174,17 @@ func caesarRunE(mode ciphers.Mode, params *CaesarParams, args []string) error {
 		}
 
 		fmt.Println(string(buffer))
-	} else {
+
+	case ModeFiles:
 		inFilePath := args[1]
 		outFilePath := args[2]
 
 		blockSizeBytes := params.blockSize * 1024
 
-		caesarCipher := ciphers.NewCaesarCipher(params.key)
+		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
+		if caesarErr != nil {
+			return caesarErr
+		}
 
 		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
 		return engine.ProcessFile(caesarCipher, inFilePath, outFilePath)

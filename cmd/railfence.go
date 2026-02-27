@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
-	"slices"
 	"strconv"
 
 	"github.com/ItakawaM/go-cryptotool/benchmark"
@@ -72,7 +70,7 @@ Notes:
 			return railfencePreRunE(cmd, params, args)
 		},
 	}
-	addFlags(encryptCmd, &params.BlockCipherParams)
+	params.addFlags(encryptCmd)
 	encryptCmd.Flags().BoolVarP(&params.isVisual, "print", "p", false, "Print zigzag visualization (text mode only)")
 
 	return encryptCmd
@@ -108,7 +106,7 @@ Notes:
 			return railfencePreRunE(cmd, params, args)
 		},
 	}
-	addFlags(decryptCmd, &params.BlockCipherParams)
+	params.addFlags(decryptCmd)
 
 	return decryptCmd
 }
@@ -120,38 +118,30 @@ func railfencePreRunE(command *cobra.Command, params *RailFenceParams, args []st
 	}
 	params.key = key
 
-	if len(args) == 2 {
-		if command.Flags().Changed("block") {
-			return fmt.Errorf("--block can only be used when processing files")
-		}
-
-		if command.Flags().Changed("threads") {
-			return fmt.Errorf("--threads can only be used when processing files")
-		}
-
-		return nil
+	sourceMode, err := modeFromArgs(args)
+	if err != nil {
+		return err
 	}
+	params.mode = sourceMode
 
-	if !slices.Contains(allowedBlockSizes, params.blockSize) {
-		return fmt.Errorf("invalid block size: %d", params.blockSize)
+	switch params.mode {
+	case ModeMessage:
+		return params.parseModeMessageArgs(command)
+	case ModeFiles:
+		return params.parseModeFilesArgs()
+	default:
+		return fmt.Errorf("invalid working mode")
 	}
-
-	if params.numCPU <= 0 {
-		return fmt.Errorf("invalid thread count: %d", params.numCPU)
-	} else if params.numCPU > runtime.NumCPU() {
-		params.numCPU = runtime.NumCPU()
-	}
-
-	return nil
 }
 
 // Logic
-func railfenceRunE(mode ciphers.Mode, params *RailFenceParams, args []string) error {
+func railfenceRunE(mode ciphers.CipherMode, params *RailFenceParams, args []string) error {
 	if isVerbose {
 		defer benchmark.MeasurePerformance(fmt.Sprintf("railfence %s", mode))()
 	}
 
-	if len(args) == 2 {
+	switch params.mode {
+	case ModeMessage:
 		message := args[1]
 
 		railFenceCipher, railFenceErr := ciphers.NewRailFenceCipher(params.key, len(message))
@@ -159,12 +149,12 @@ func railfenceRunE(mode ciphers.Mode, params *RailFenceParams, args []string) er
 			return railFenceErr
 		}
 
-		src := []byte(message)
-		dst := make([]byte, len(src))
-
 		if params.isVisual {
 			railFenceCipher.Visualize(message)
 		}
+
+		src := []byte(message)
+		dst := make([]byte, len(src))
 
 		var err error
 		switch mode {
@@ -178,7 +168,9 @@ func railfenceRunE(mode ciphers.Mode, params *RailFenceParams, args []string) er
 		}
 
 		fmt.Println(string(dst))
-	} else {
+		return nil
+
+	case ModeFiles:
 		inFilePath := args[1]
 		outFilePath := args[2]
 
@@ -188,9 +180,11 @@ func railfenceRunE(mode ciphers.Mode, params *RailFenceParams, args []string) er
 		if err != nil {
 			return err
 		}
+
 		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
 		return engine.ProcessFile(railFenceCipher, inFilePath, outFilePath)
-	}
 
-	return nil
+	default:
+		return fmt.Errorf("invalid working mode")
+	}
 }

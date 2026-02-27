@@ -1,5 +1,7 @@
 package ciphers
 
+import "fmt"
+
 type CaesarCipher struct {
 	Key               byte
 	InPlace           bool
@@ -7,7 +9,11 @@ type CaesarCipher struct {
 	ReverseTable      [256]byte
 }
 
-func NewCaesarCipher(key byte) *CaesarCipher {
+func NewCaesarCipher(key byte) (*CaesarCipher, error) {
+	if key < 1 {
+		return nil, fmt.Errorf("incorrect key provided: %d", key)
+	}
+
 	var substitutionTable [256]byte
 	var reverseTable [256]byte
 
@@ -31,7 +37,7 @@ func NewCaesarCipher(key byte) *CaesarCipher {
 		InPlace:           true,
 		SubstitutionTable: substitutionTable,
 		ReverseTable:      reverseTable,
-	}
+	}, nil
 }
 
 func (cc *CaesarCipher) IsInPlace() bool {
