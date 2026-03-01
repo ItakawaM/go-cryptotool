@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/ItakawaM/go-cryptotool/benchmark"
@@ -31,7 +34,11 @@ This command allows encryption and decryption of messages or files
 using a specified shift value (key).
 `,
 	}
-	caesarCmd.AddCommand(newCaesarEncryptCommand(), newCaesarDecryptCommand())
+	caesarCmd.AddCommand(
+		newCaesarEncryptCommand(),
+		newCaesarDecryptCommand(),
+		newCaesarBruteforceCommand(),
+	)
 
 	return caesarCmd
 }
@@ -48,7 +55,7 @@ using a specified shift value (key).
 
 Each letter in the input is shifted forward in the alphabet
 by the specified number. The alphabet wraps around after Z.
-Non-alphabetic and non-numeric characters remain unchanged.
+Non-alphabetic characters remain unchanged.
 
 A shift of 0 results in no transformation.
 
@@ -63,8 +70,8 @@ Examples:
 Notes:
 
   • The shift can be any non-negative integer (negative values are not allowed)
-  • The effective shift is calculated modulo len(language)
-  • For very large files, performance depends on CPU
+  • The effective shift is calculated modulo 26[a-zA-Z]
+  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return caesarRunE(ciphers.Encrypt, params, args)
@@ -89,9 +96,8 @@ func newCaesarDecryptCommand() *cobra.Command {
 using a specified shift value (key).
 
 Each letter in the input is shifted backward in the alphabet
-by the specified number. The alphabet wraps around before
-the first character of the selected language set.
-Non-alphabetic and non-numeric characters remain unchanged.
+by the specified number. The alphabet wraps around after Z.
+Non-alphabetic characters remain unchanged.
 
 A shift of 0 results in no transformation.
 
@@ -106,8 +112,8 @@ Examples:
 Notes:
 
   • The shift can be any non-negative integer (negative values are not allowed)
-  • The effective shift is calculated modulo len(language)
-  • For very large files, performance depends on CPU
+  • The effective shift is calculated modulo 26[a-zA-Z]
+  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return caesarRunE(ciphers.Decrypt, params, args)
@@ -121,6 +127,53 @@ Notes:
 	return decryptCmd
 }
 
+func newCaesarBruteforceCommand() *cobra.Command {
+	params := &CaesarParams{}
+
+	bruteforceCmd := &cobra.Command{
+		Use:   "bruteforce <message | input> [output]",
+		Short: "Bruteforce a given message/file with all possible shift keys",
+		Args:  cobra.RangeArgs(1, 2),
+		Long: `This command attempts to decrypt a message or file
+by trying all possible shift keys.
+
+Instead of requiring a specific key, the bruteforce mode
+iterates through every possible shift (from 1 up to
+25) and outputs each resulting candidate.
+
+Each letter in the input is shifted backward in the alphabet
+according to the current tested key. The alphabet wraps around after Z.
+Non-alphabetic characters remain unchanged.
+
+This is useful when the original shift key is unknown.
+
+Examples:
+
+  Bruteforce text:
+    1. cipher caesar bruteforce "DwwdfnDwGdzq"
+
+  Bruteforce a file:
+    1. cipher caesar bruteforce file.enc output.txt
+
+Notes:
+
+  • All possible shift values are tested automatically
+  • The effective shift is calculated modulo 26[a-zA-Z]
+  • For very large files, performance depends on CPU and SSD
+  • Output may contain many candidate plaintexts
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return caesarBruteforceRunE(params, args)
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return caesarBruteforcePreRunE(cmd, params, args)
+		},
+	}
+	params.addFlags(bruteforceCmd)
+
+	return bruteforceCmd
+}
+
 func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) error {
 	key, err := strconv.Atoi(args[0])
 	if err != nil {
@@ -130,7 +183,7 @@ func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) 
 	}
 	params.key = byte(key % 26)
 
-	sourceMode, err := modeFromArgs(args)
+	sourceMode, err := modeFromArgs(len(args[1:]))
 	if err != nil {
 		return err
 	}
@@ -191,4 +244,71 @@ func caesarRunE(mode ciphers.CipherMode, params *CaesarParams, args []string) er
 	}
 
 	return nil
+}
+
+func caesarBruteforceRunE(params *CaesarParams, args []string) error {
+	if isVerbose {
+		defer benchmark.MeasurePerformance("caesar bruteforce")()
+	}
+
+	switch params.mode {
+	case ModeMessage:
+		message := args[0]
+
+		buffer := []byte(message)
+		dst := bytes.Clone(buffer)
+
+		for i := range 26 {
+			caesarCipher, caesarErr := ciphers.NewCaesarCipher(byte(i))
+			if caesarErr != nil {
+				return caesarErr
+			}
+
+			err := caesarCipher.DecryptBlock(dst, buffer)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("[%d]: %s\n", i, string(dst))
+		}
+
+	case ModeFiles:
+		inFilePath := args[0]
+		outFilePathFolder := fmt.Sprintf("%s_bruteforce", args[1])
+		if err := os.MkdirAll(outFilePathFolder, 0755); err != nil {
+			return err
+		}
+
+		blockSizeBytes := params.blockSize * 1024
+		engine := engine.NewBlockEngine(ciphers.Decrypt, blockSizeBytes, params.numCPU)
+		for i := range 26 {
+			caesarCipher, caesarErr := ciphers.NewCaesarCipher(byte(i))
+			if caesarErr != nil {
+				return caesarErr
+			}
+
+			if err := engine.ProcessFile(caesarCipher, inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func caesarBruteforcePreRunE(command *cobra.Command, params *CaesarParams, args []string) error {
+	sourceMode, err := modeFromArgs(len(args))
+	if err != nil {
+		return err
+	}
+	params.mode = sourceMode
+
+	switch params.mode {
+	case ModeMessage:
+		return params.parseModeMessageArgs(command)
+	case ModeFiles:
+		return params.parseModeFilesArgs()
+	default:
+		return fmt.Errorf("invalid working mode")
+	}
 }

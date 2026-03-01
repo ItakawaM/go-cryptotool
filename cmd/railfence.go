@@ -118,7 +118,7 @@ func railfencePreRunE(command *cobra.Command, params *RailFenceParams, args []st
 	}
 	params.key = key
 
-	sourceMode, err := modeFromArgs(args)
+	sourceMode, err := modeFromArgs(len(args[1:]))
 	if err != nil {
 		return err
 	}

@@ -21,11 +21,11 @@ const (
 	ModeFiles
 )
 
-func modeFromArgs(args []string) (WorkingMode, error) {
-	switch len(args) {
-	case 2:
+func modeFromArgs(lenArgs int) (WorkingMode, error) {
+	switch lenArgs {
+	case 1:
 		return ModeMessage, nil
-	case 3:
+	case 2:
 		return ModeFiles, nil
 	default:
 		return 0, fmt.Errorf("invalid number of arguments")
