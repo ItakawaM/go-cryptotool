@@ -15,7 +15,7 @@ import (
 )
 
 type CaesarParams struct {
-	key byte
+	key int
 	BlockCipherParams
 }
 
@@ -216,6 +216,10 @@ Notes:
   • Only alphabetic characters are used for frequency scoring
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isVerbose {
+				defer benchmark.MeasurePerformance("caesar analyze")()
+			}
+
 			source := args[0]
 
 			var results []analyze.AnalysisResult
@@ -247,7 +251,7 @@ func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) 
 	} else if key < 0 {
 		return fmt.Errorf("key can not be negative: %d", key)
 	}
-	params.key = byte(key % 26)
+	params.key = key
 
 	sourceMode, err := modeFromArgs(len(args[1:]))
 	if err != nil {
@@ -325,7 +329,7 @@ func caesarBruteforceRunE(params *CaesarParams, args []string) error {
 		dst := bytes.Clone(buffer)
 
 		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(byte(i))
+			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
 			if caesarErr != nil {
 				return caesarErr
 			}
@@ -348,7 +352,7 @@ func caesarBruteforceRunE(params *CaesarParams, args []string) error {
 		blockSizeBytes := params.blockSize * 1024
 		engine := engine.NewBlockEngine(ciphers.Decrypt, blockSizeBytes, params.numCPU)
 		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(byte(i))
+			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
 			if caesarErr != nil {
 				return caesarErr
 			}

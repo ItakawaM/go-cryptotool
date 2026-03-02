@@ -4,7 +4,6 @@ import "fmt"
 
 type RailFenceCipher struct {
 	Key              int
-	InPlace          bool
 	PermutationTable []int
 	InverseTable     []int
 }
@@ -16,6 +15,13 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 	if key < 1 {
 		return nil, fmt.Errorf("incorrect key provided: %d", key)
 		// Reverse order when Key >= BlockSize
+	} else if key == 1 {
+		// Encrypt() Decrypt() handle the key == 1 option
+		return &RailFenceCipher{
+			Key:              key,
+			PermutationTable: permutationTable,
+			InverseTable:     inverseTable,
+		}, nil
 	} else if key >= blockSize {
 		// Blocks are always even numbers
 		for index := range blockSize {
@@ -25,7 +31,6 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 
 		return &RailFenceCipher{
 			Key:              key,
-			InPlace:          false,
 			PermutationTable: permutationTable,
 			InverseTable:     inverseTable,
 		}, nil
@@ -67,18 +72,17 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 
 	return &RailFenceCipher{
 		Key:              key,
-		InPlace:          false,
 		PermutationTable: permutationTable,
 		InverseTable:     inverseTable,
 	}, nil
 }
 
 func (rfCipher *RailFenceCipher) IsInPlace() bool {
-	return rfCipher.InPlace
+	return false
 }
 
 func (rfCipher *RailFenceCipher) Visualize(message string) {
-	if rfCipher.Key <= 1 {
+	if rfCipher.Key == 1 {
 		fmt.Println(message)
 		return
 	}
@@ -109,7 +113,7 @@ func (rfCipher *RailFenceCipher) Visualize(message string) {
 }
 
 func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
-	if rfCipher.Key <= 1 {
+	if rfCipher.Key == 1 {
 		copy(dst, src)
 		return nil
 	}
@@ -122,7 +126,7 @@ func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
 }
 
 func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
-	if rfCipher.Key <= 1 {
+	if rfCipher.Key == 1 {
 		copy(dst, src)
 		return nil
 	}

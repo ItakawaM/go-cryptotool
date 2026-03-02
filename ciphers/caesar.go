@@ -1,29 +1,32 @@
 package ciphers
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type CaesarCipher struct {
 	Key               byte
-	InPlace           bool
 	SubstitutionTable [256]byte
 	ReverseTable      [256]byte
 }
 
-func NewCaesarCipher(key byte) (*CaesarCipher, error) {
+func NewCaesarCipher(key int) (*CaesarCipher, error) {
 	if key < 0 {
 		return nil, fmt.Errorf("incorrect key provided: %d", key)
 	}
+	parsedKey := byte(key % 26)
 
 	var substitutionTable [256]byte
 	var reverseTable [256]byte
 
-	for char := range byte(255) {
+	for i := range 256 {
+		char := byte(i)
 		if char >= 'a' && char <= 'z' {
-			newChar := 'a' + (char-'a'+key)%26
+			newChar := 'a' + (char-'a'+parsedKey)%26
 			substitutionTable[char] = newChar
 			reverseTable[newChar] = char
 		} else if char >= 'A' && char <= 'Z' {
-			newChar := 'A' + (char-'A'+key)%26
+			newChar := 'A' + (char-'A'+parsedKey)%26
 			substitutionTable[char] = newChar
 			reverseTable[newChar] = char
 		} else {
@@ -33,15 +36,14 @@ func NewCaesarCipher(key byte) (*CaesarCipher, error) {
 	}
 
 	return &CaesarCipher{
-		Key:               key % 26,
-		InPlace:           true,
+		Key:               parsedKey,
 		SubstitutionTable: substitutionTable,
 		ReverseTable:      reverseTable,
 	}, nil
 }
 
 func (cc *CaesarCipher) IsInPlace() bool {
-	return cc.InPlace
+	return true
 }
 
 func (cc *CaesarCipher) EncryptBlock(dst []byte, src []byte) error {

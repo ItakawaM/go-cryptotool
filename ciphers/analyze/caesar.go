@@ -69,7 +69,7 @@ func AnalyzeCaesarBuffer(buffer []byte) ([]AnalysisResult, error) {
 
 	dst := make([]byte, len(buffer))
 	for key := range 26 {
-		caesarCipher, err := ciphers.NewCaesarCipher(byte(key))
+		caesarCipher, err := ciphers.NewCaesarCipher(key)
 		if err != nil {
 			return nil, err
 		}
