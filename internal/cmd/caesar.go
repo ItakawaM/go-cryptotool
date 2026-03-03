@@ -224,10 +224,11 @@ Notes:
 
 			var results []analyze.AnalysisResult
 			var resultsErr error
+			analyzer := analyze.NewCaesarAnalyzer()
 			if !fileExists(source) {
-				results, resultsErr = analyze.AnalyzeCaesarBuffer([]byte(source))
+				results, resultsErr = analyzer.AnalyzeBuffer([]byte(source))
 			} else {
-				results, resultsErr = analyze.AnalyzeCaesarFile(source)
+				results, resultsErr = analyzer.AnalyzeFile(source)
 			}
 			if resultsErr != nil {
 				return resultsErr
