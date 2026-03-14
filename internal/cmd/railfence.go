@@ -181,8 +181,8 @@ func railfenceRunE(mode ciphers.CipherMode, params *RailFenceParams, args []stri
 			return err
 		}
 
-		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
-		return engine.ProcessFile(railFenceCipher, inFilePath, outFilePath)
+		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
+		return engine.ProcessFile(railFenceCipher, mode, inFilePath, outFilePath)
 
 	default:
 		return fmt.Errorf("invalid working mode")

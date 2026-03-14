@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func PKCS7Pad(data []byte, blockSize int) []byte {
+func Pad(data []byte, blockSize int) []byte {
 	paddingLen := blockSize - (len(data) % blockSize)
 	pad := bytes.Repeat([]byte{byte(0x20)}, paddingLen-4)
 
@@ -17,7 +17,7 @@ func PKCS7Pad(data []byte, blockSize int) []byte {
 	return append(data, padBlock...)
 }
 
-func PKCS7Unpad(data []byte, blockSize int) ([]byte, error) {
+func Unpad(data []byte, blockSize int) ([]byte, error) {
 	if len(data) == 0 || len(data)%blockSize != 0 {
 		return nil, fmt.Errorf("invalid padded data")
 	}

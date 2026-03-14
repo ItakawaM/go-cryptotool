@@ -10,20 +10,18 @@ import (
 )
 
 type BlockEngine struct {
-	mode      ciphers.CipherMode
 	blockSize int
 	numCpu    int
 }
 
-func NewBlockEngine(mode ciphers.CipherMode, blockSize int, numCpu int) *BlockEngine {
+func NewBlockEngine(blockSize int, numCpu int) *BlockEngine {
 	return &BlockEngine{
-		mode:      mode,
 		blockSize: blockSize,
 		numCpu:    numCpu,
 	}
 }
 
-func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inFilePath, outFilePath string) error {
+func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, mode ciphers.CipherMode, inFilePath, outFilePath string) error {
 	inFile, err := os.Open(inFilePath)
 	if err != nil {
 		return err
@@ -44,12 +42,13 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inF
 
 	fullBlocks := fileSize / int64(blockEngine.blockSize)
 	remainder := fileSize % int64(blockEngine.blockSize)
-	if err := outFile.Truncate(fileSize); err != nil {
-		return err
+
+	if mode == ciphers.Decrypt && fullBlocks < 1 {
+		return fmt.Errorf("padding corruption or no padding provided for decryption")
 	}
 
-	if blockEngine.mode == ciphers.Decrypt && fullBlocks < 1 {
-		return fmt.Errorf("padding corruption or no padding provided for decryption")
+	if err := outFile.Truncate((fullBlocks + 1) * int64(blockEngine.blockSize)); err != nil {
+		return err
 	}
 
 	jobs := make(chan Job, blockEngine.numCpu)
@@ -68,7 +67,7 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inF
 
 	for i := range blockEngine.numCpu {
 		waitGroup.Add(1)
-		worker := NewWorker(i, buffers, blockCipher, blockEngine.mode, inFile, outFile, jobs, errors, &waitGroup)
+		worker := NewWorker(i, buffers, blockCipher, mode, inFile, outFile, jobs, errors, &waitGroup)
 
 		go worker.Start()
 	}
@@ -89,14 +88,22 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inF
 		}
 	}
 
-	src, dst := buffers[0], buffers[1]
-	switch blockEngine.mode {
+	var src, dst []byte
+	if blockCipher.IsInPlace() {
+		src = buffers[0]
+		dst = buffers[0]
+	} else {
+		src = buffers[0]
+		dst = buffers[1]
+	}
+
+	switch mode {
 	case ciphers.Encrypt:
 		// Padding last block
 		if _, err := inFile.ReadAt(src[:remainder], fullBlocks*int64(blockEngine.blockSize)); err != nil {
 			return err
 		}
-		src = padding.PKCS7Pad(src[:remainder], int(blockEngine.blockSize))
+		src = padding.Pad(src[:remainder], int(blockEngine.blockSize))
 
 		if err := blockCipher.EncryptBlock(dst, src); err != nil {
 			return err
@@ -113,7 +120,7 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, inF
 		}
 
 		// Verify pad
-		src, err = padding.PKCS7Unpad(src, int(blockEngine.blockSize))
+		src, err = padding.Unpad(src, int(blockEngine.blockSize))
 		if err != nil {
 			return err
 		}

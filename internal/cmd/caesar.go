@@ -310,8 +310,8 @@ func caesarRunE(mode ciphers.CipherMode, params *CaesarParams, args []string) er
 			return caesarErr
 		}
 
-		engine := engine.NewBlockEngine(mode, blockSizeBytes, params.numCPU)
-		return engine.ProcessFile(caesarCipher, inFilePath, outFilePath)
+		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
+		return engine.ProcessFile(caesarCipher, mode, inFilePath, outFilePath)
 	}
 
 	return nil
@@ -351,14 +351,15 @@ func caesarBruteforceRunE(params *CaesarParams, args []string) error {
 		}
 
 		blockSizeBytes := params.blockSize * 1024
-		engine := engine.NewBlockEngine(ciphers.Decrypt, blockSizeBytes, params.numCPU)
+		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
 		for i := range 26 {
 			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
 			if caesarErr != nil {
 				return caesarErr
 			}
 
-			if err := engine.ProcessFile(caesarCipher, inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
+			if err := engine.ProcessFile(caesarCipher, ciphers.Decrypt,
+				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
 				return err
 			}
 		}

@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-const (
-	chiSquaredThreshold        float64 = 200.0
-	englishDictionaryThreshold float64 = 0.5
-)
+// const (
+// 	chiSquaredThreshold        float64 = 200.0
+// 	englishDictionaryThreshold float64 = 0.5
+// )
 
 type letterFrequency struct {
 	letter    byte
