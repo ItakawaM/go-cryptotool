@@ -259,6 +259,9 @@ func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) 
 		return err
 	}
 	params.mode = sourceMode
+	if !fileExists(args[1]) {
+		return fmt.Errorf("provided input file does not exist: %s", args[1])
+	}
 
 	switch params.mode {
 	case ModeMessage:
@@ -374,6 +377,9 @@ func caesarBruteforcePreRunE(command *cobra.Command, params *CaesarParams, args 
 		return err
 	}
 	params.mode = sourceMode
+	if !fileExists(args[0]) {
+		return fmt.Errorf("provided input file does not exist: %s", args[0])
+	}
 
 	switch params.mode {
 	case ModeMessage:

@@ -123,6 +123,9 @@ func railfencePreRunE(command *cobra.Command, params *RailFenceParams, args []st
 		return err
 	}
 	params.mode = sourceMode
+	if !fileExists(args[1]) {
+		return fmt.Errorf("provided input file does not exist: %s", args[1])
+	}
 
 	switch params.mode {
 	case ModeMessage:
