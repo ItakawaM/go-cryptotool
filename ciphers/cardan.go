@@ -2,6 +2,7 @@ package ciphers
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
 )
 
@@ -36,6 +37,10 @@ func getAllRotations(p point, gridSize int) [4]point {
 }
 
 func ValidateCardanKey(key []int, gridSize int) error {
+	if gridSize <= 0 {
+		return fmt.Errorf("invalid gridSize provided: %d", gridSize)
+	}
+
 	maxIndex := gridSize * gridSize
 	centerIndex := -1
 
@@ -90,28 +95,60 @@ func ValidateCardanKey(key []int, gridSize int) error {
 	return nil
 }
 
+func GenerateCardanKey(gridSize int) ([]int, error) {
+	if gridSize <= 0 {
+		return nil, fmt.Errorf("invalid gridSize provided: %d", gridSize)
+	}
+
+	key := make([]int, (gridSize*gridSize-gridSize%2)/4)
+	keyIndex := 0
+	for i := range gridSize/2 + gridSize%2 {
+		for j := range gridSize/2 + gridSize%2 {
+			p := point{i, j}
+			if p.row == gridSize/2 && p.col == gridSize/2 {
+				continue // Skip the center
+			}
+
+			allRotations := getAllRotations(p, gridSize)
+			randomIndex := rand.IntN(len(allRotations))
+			key[keyIndex] = pointToIndex(allRotations[randomIndex], gridSize)
+			keyIndex++
+		}
+	}
+	return key, nil
+}
+
 func NewCardanCipher(key []int, gridSize int) (*CardanCipher, error) {
 	if gridSize <= 0 {
 		return nil, fmt.Errorf("invalid gridSize provided: %d", gridSize)
 	}
 
 	if key == nil {
-		// key = generate key... // TODO: add key generation
+		var err error
+		key, err = GenerateCardanKey(gridSize)
+		if err != nil {
+			return nil, err
+		}
 	} else if err := ValidateCardanKey(key, gridSize); err != nil {
 		return nil, err
 	}
-	slices.Sort(key) // Modifies the caller's key
+
+	sortedKey := make([]int, len(key))
+	copy(sortedKey, key)
+	slices.Sort(sortedKey)
 
 	permutationTable := make([]int, gridSize*gridSize)
 	inverseTable := make([]int, gridSize*gridSize)
 	for i := range 4 {
-		for j, index := range key {
-			permutationTable[i*len(key)+j] = index
-			inverseTable[index] = i*len(key) + j
-			key[j] = pointToIndex(rotate90(indexToPoint(index, gridSize), gridSize), gridSize)
+		for j, index := range sortedKey {
+			permutationTable[i*len(sortedKey)+j] = index
+			inverseTable[index] = i*len(sortedKey) + j
+			// Rotate the key in-place
+			sortedKey[j] = pointToIndex(rotate90(indexToPoint(index, gridSize), gridSize), gridSize)
 		}
 	}
 
+	// Set the last element to center in an odd grid
 	if gridSize%2 != 0 {
 		center := pointToIndex(point{gridSize / 2, gridSize / 2}, gridSize)
 		permutationTable[len(permutationTable)-1] = center
