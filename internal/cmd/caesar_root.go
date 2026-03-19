@@ -1,23 +1,9 @@
 package cmd
 
 import (
-	"bytes"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
-
 	"github.com/ItakawaM/go-cryptotool/ciphers"
-	"github.com/ItakawaM/go-cryptotool/ciphers/analyze"
-	"github.com/ItakawaM/go-cryptotool/internal/benchmark"
-	"github.com/ItakawaM/go-cryptotool/internal/engine"
 	"github.com/spf13/cobra"
 )
-
-type CaesarParams struct {
-	key int
-	BlockCipherParams
-}
 
 func NewCaesarCommand() *cobra.Command {
 	caesarCmd := &cobra.Command{
@@ -46,7 +32,7 @@ using a specified shift value (key).
 }
 
 func newCaesarEncryptCommand() *cobra.Command {
-	params := &CaesarParams{}
+	params := &caesarParams{}
 
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt <key> <message | input> [output]",
@@ -76,7 +62,7 @@ Notes:
   • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return caesarRunE(ciphers.Encrypt, params, args)
+			return caesarRunE(cmd, args, params, ciphers.Encrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return caesarPreRunE(cmd, params, args)
@@ -88,7 +74,7 @@ Notes:
 }
 
 func newCaesarDecryptCommand() *cobra.Command {
-	params := &CaesarParams{}
+	params := &caesarParams{}
 
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt <key> <message | input> [output]",
@@ -118,7 +104,7 @@ Notes:
   • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return caesarRunE(ciphers.Decrypt, params, args)
+			return caesarRunE(cmd, args, params, ciphers.Decrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return caesarPreRunE(cmd, params, args)
@@ -130,7 +116,7 @@ Notes:
 }
 
 func newCaesarBruteforceCommand() *cobra.Command {
-	params := &CaesarParams{}
+	params := &caesarParams{}
 
 	bruteforceCmd := &cobra.Command{
 		Use:   "bruteforce <message | input> [output]",
@@ -165,7 +151,7 @@ Notes:
   • Output may contain many candidate plaintexts
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return caesarBruteforceRunE(params, args)
+			return caesarBruteforceRunE(cmd, args, params)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return caesarBruteforcePreRunE(cmd, params, args)
@@ -216,177 +202,9 @@ Notes:
   • Only alphabetic characters are used for frequency scoring
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if isVerbose {
-				defer benchmark.MeasurePerformance("caesar analyze")()
-			}
-
-			source := args[0]
-
-			var results []analyze.AnalysisResult
-			var resultsErr error
-			analyzer := analyze.NewCaesarAnalyzer()
-			if !fileExists(source) {
-				results, resultsErr = analyzer.AnalyzeBuffer([]byte(source))
-			} else {
-				results, resultsErr = analyzer.AnalyzeFile(source)
-			}
-			if resultsErr != nil {
-				return resultsErr
-			}
-
-			for i := range len(results) {
-				fmt.Println(results[i])
-			}
-
-			return nil
+			return caesarAnalyzeRunE(cmd, args)
 		},
 	}
 
 	return analyzeCmd
-}
-
-func caesarPreRunE(command *cobra.Command, params *CaesarParams, args []string) error {
-	key, err := strconv.Atoi(args[0])
-	if err != nil {
-		return err
-	} else if key < 0 {
-		return fmt.Errorf("key can not be negative: %d", key)
-	}
-	params.key = key
-
-	sourceMode, err := modeFromArgs(len(args[1:]))
-	if err != nil {
-		return err
-	}
-	params.mode = sourceMode
-	if !fileExists(args[1]) {
-		return fmt.Errorf("provided input file does not exist: %s", args[1])
-	}
-
-	switch params.mode {
-	case ModeMessage:
-		return params.parseModeMessageArgs(command)
-	case ModeFiles:
-		return params.parseModeFilesArgs()
-	default:
-		return fmt.Errorf("invalid working mode")
-	}
-}
-
-func caesarRunE(mode ciphers.CipherMode, params *CaesarParams, args []string) error {
-	if isVerbose {
-		defer benchmark.MeasurePerformance(fmt.Sprintf("caesar %s", mode))()
-	}
-
-	switch params.mode {
-	case ModeMessage:
-		message := args[1]
-
-		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
-		if caesarErr != nil {
-			return caesarErr
-		}
-
-		buffer := []byte(message)
-
-		var err error
-		switch mode {
-		case ciphers.Encrypt:
-			err = caesarCipher.EncryptBlock(buffer, buffer)
-		case ciphers.Decrypt:
-			err = caesarCipher.DecryptBlock(buffer, buffer)
-		}
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(string(buffer))
-
-	case ModeFiles:
-		inFilePath := args[1]
-		outFilePath := args[2]
-
-		blockSizeBytes := params.blockSize * 1024
-
-		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
-		if caesarErr != nil {
-			return caesarErr
-		}
-
-		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
-		return engine.ProcessFile(caesarCipher, mode, inFilePath, outFilePath)
-	}
-
-	return nil
-}
-
-func caesarBruteforceRunE(params *CaesarParams, args []string) error {
-	if isVerbose {
-		defer benchmark.MeasurePerformance("caesar bruteforce")()
-	}
-
-	switch params.mode {
-	case ModeMessage:
-		message := args[0]
-
-		buffer := []byte(message)
-		dst := bytes.Clone(buffer)
-
-		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
-			if caesarErr != nil {
-				return caesarErr
-			}
-
-			err := caesarCipher.DecryptBlock(dst, buffer)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("[%d]: %s\n", i, string(dst))
-		}
-
-	case ModeFiles:
-		inFilePath := args[0]
-		outFilePathFolder := fmt.Sprintf("%s_bruteforce", args[1])
-		if err := os.MkdirAll(outFilePathFolder, 0755); err != nil {
-			return err
-		}
-
-		blockSizeBytes := params.blockSize * 1024
-		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
-		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
-			if caesarErr != nil {
-				return caesarErr
-			}
-
-			if err := engine.ProcessFile(caesarCipher, ciphers.Decrypt,
-				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func caesarBruteforcePreRunE(command *cobra.Command, params *CaesarParams, args []string) error {
-	sourceMode, err := modeFromArgs(len(args))
-	if err != nil {
-		return err
-	}
-	params.mode = sourceMode
-	if !fileExists(args[0]) {
-		return fmt.Errorf("provided input file does not exist: %s", args[0])
-	}
-
-	switch params.mode {
-	case ModeMessage:
-		return params.parseModeMessageArgs(command)
-	case ModeFiles:
-		return params.parseModeFilesArgs()
-	default:
-		return fmt.Errorf("invalid working mode")
-	}
 }
