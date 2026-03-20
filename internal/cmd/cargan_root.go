@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"strconv"
+	"runtime"
 
 	"github.com/ItakawaM/go-cryptotool/ciphers"
 	"github.com/spf13/cobra"
@@ -40,6 +37,8 @@ files using a specified grille pattern and grid size.
 }
 
 func newCardanEncryptCommand() *cobra.Command {
+	params := &cardanParams{}
+
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt [key] <message | input> [output]",
 		Short: "Encrypt a message or file using a Cardan grille cipher",
@@ -74,19 +73,21 @@ Notes:
   • Messages shorter than the grid may be padded automatically
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: CardanRunE
-			return nil
+			return cardanRunE(cmd, args, params, ciphers.Encrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: CardanPreRunE
-			return nil
+			return cardanPreRunE(cmd, args, params)
 		},
 	}
+	// cant use params.addFlags, because of block
+	encryptCmd.Flags().IntVarP(&params.numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
 
 	return encryptCmd
 }
 
 func newCardanDecryptCommand() *cobra.Command {
+	params := &cardanParams{}
+
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt <key> <message | input> [output]",
 		Short: "Decrypt a message or file using a Cardan grille cipher",
@@ -118,20 +119,20 @@ Notes:
   • Incorrect keys will produce invalid plaintext
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: CardanRunE
-			return nil
+			return cardanRunE(cmd, args, params, ciphers.Decrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: CardanPreRunE
-			return nil
+			return cardanPreRunE(cmd, args, params)
 		},
 	}
+	// cant use params.addFlags, because of block
+	decryptCmd.Flags().IntVarP(&params.numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
 
 	return decryptCmd
 }
 
 func newCardanGenerateKeyCommand() *cobra.Command {
-	var gridSize int
+	params := &cardanParams{}
 
 	generateCmd := &cobra.Command{
 		Use:   "generate-key <size> <output>",
@@ -163,40 +164,10 @@ Notes:
   • The generated grille guarantees non-overlapping rotations
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key, err := ciphers.GenerateCardanKey(gridSize)
-			if err != nil {
-				return err
-			}
-
-			jsonData, err := json.Marshal(key)
-			if err != nil {
-				return err
-			}
-
-			outFile, err := os.Create(args[1])
-			if err != nil {
-				return err
-			}
-
-			if _, err := outFile.Write(jsonData); err != nil {
-				return err
-			}
-
-			defer cmd.Printf("Key written to %s\n", args[1])
-			return outFile.Close()
+			return cardanGenerateKeyRunE(cmd, args, params)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-			gridSize, err = strconv.Atoi(args[0])
-			if err != nil {
-				return err
-			}
-
-			if gridSize <= 0 {
-				return fmt.Errorf("invalid size provided: %d", gridSize)
-			}
-
-			return nil
+			return cardanGenerateKeyPreRunE(args, params)
 		},
 	}
 

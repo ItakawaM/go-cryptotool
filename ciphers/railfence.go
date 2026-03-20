@@ -27,7 +27,6 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 			InverseTable:     inverseTable,
 		}, nil
 	} else if key >= blockSize {
-		// Blocks are always even numbers
 		for index := range blockSize {
 			permutationTable[index] = blockSize - 1 - index
 			inverseTable[blockSize-1-index] = index
