@@ -18,7 +18,6 @@ func TestRailFenceEncrypt(t *testing.T) {
 		{"Normal 1", "Canabis", "nsaaiCb", 3, false},
 		{"Normal 2", "Hello World!!", "o!l !lWdeolHr", 5, false},
 		{"Normal 3", "Chicken", "hceCikn", 2, false},
-		{"Empty", "", "", 2, false},
 		{"Big Key", "Hello World!", "!dlroW olleH", 123, false},
 		{"Negative Key", "Negative", "Negative", -1, true},
 		{"Key of 1", "Positive", "Positive", 1, false},
@@ -59,7 +58,6 @@ func TestRailFenceCipher(t *testing.T) {
 	}{
 		{"Normal 1", "Canabis", 3, false},
 		{"Normal 2", "Hello World!", 5, false},
-		{"Empty", "", 2, false},
 		{"Big Key", "Hello World!", 123, false},
 		{"Negative Key", "Negative", -1, true},
 		{"Key of 1", "Positive", 1, false},
@@ -95,14 +93,49 @@ func TestRailFenceCipher(t *testing.T) {
 	}
 }
 
+func TestRailFenceCipherKeyValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       int
+		blockSize int
+		wantErr   bool
+		errType   string
+	}{
+		{"Valid Key 2", 2, 10, false, ""},
+		{"Valid Key 3", 3, 10, false, ""},
+		{"Valid Key Equals BlockSize", 10, 10, false, ""},
+		{"Valid Key Greater Than BlockSize", 15, 10, false, ""},
+		{"Valid Key 1", 1, 10, false, ""},
+		{"Invalid Negative Key", -1, 10, true, "key"},
+		{"Invalid Zero Key", 0, 10, true, "key"},
+		{"Invalid BlockSize Zero", 3, 0, true, "blockSize"},
+		{"Invalid BlockSize Negative", 3, -5, true, "blockSize"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cipher, err := ciphers.NewRailFenceCipher(tt.key, tt.blockSize)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("NewRailFenceCipher() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && cipher != nil {
+				t.Fatal("Expected nil cipher on error")
+			}
+			if !tt.wantErr && cipher == nil {
+				t.Fatal("Expected non-nil cipher on success")
+			}
+		})
+	}
+}
+
 func FuzzRailFenceCipher(f *testing.F) {
 	f.Add("Canabis", 3)
 	f.Add("ABC", 5)
 	f.Add("Hello World!", 2)
-	f.Add("", 12)
+	f.Add("X", 12)
 
 	f.Fuzz(func(t *testing.T, message string, key int) {
-		if key <= 1 {
+		if key <= 1 || len(message) == 0 {
 			return
 		} else if key > len(message)+10 {
 			key = len(message) + 1

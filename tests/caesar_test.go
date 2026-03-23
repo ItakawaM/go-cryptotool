@@ -96,6 +96,33 @@ func TestCaesarCipher(t *testing.T) {
 	}
 }
 
+func TestCaesarCipherKeyValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     int
+		wantErr bool
+	}{
+		{"Valid Zero Key", 0, false},
+		{"Valid Positive Key", 5, false},
+		{"Valid Large Key", 26, false},
+		{"Valid Very Large Key", 123456, false},
+		{"Invalid Negative Key", -1, true},
+		{"Invalid Large Negative Key", -100, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cipher, err := ciphers.NewCaesarCipher(tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("NewCaesarCipher() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && cipher != nil {
+				t.Fatal("Expected nil cipher on error")
+			}
+		})
+	}
+}
+
 func FuzzCaesarCipher(f *testing.F) {
 	f.Add("Canabis", 3)
 	f.Add("ABC", 5)
