@@ -22,32 +22,23 @@ func (cK *CardanKey) String() string {
 	if err != nil {
 		return fmt.Sprintf("CardanKey{Key: %v}", cK.Key)
 	}
+
 	return string(jsonData)
 }
 
-type pointCoordinates struct {
-	row int
-	col int
+func rotate90(index int, gridSize int) int {
+	row := index / gridSize
+	col := index % gridSize
+
+	return col*gridSize + (gridSize - 1 - row)
 }
 
-func pointToIndex(point pointCoordinates, gridSize int) int {
-	return point.row*gridSize + point.col
-}
-
-func indexToPoint(index int, gridSize int) pointCoordinates {
-	return pointCoordinates{index / gridSize, index % gridSize}
-}
-
-func rotate90(point pointCoordinates, gridSize int) pointCoordinates {
-	return pointCoordinates{point.col, gridSize - 1 - point.row}
-}
-
-func getAllRotations(point pointCoordinates, gridSize int) [4]pointCoordinates {
-	rotation90 := rotate90(point, gridSize)
+func getAllRotations(index int, gridSize int) [4]int {
+	rotation90 := rotate90(index, gridSize)
 	rotation180 := rotate90(rotation90, gridSize)
 	rotation270 := rotate90(rotation180, gridSize)
 
-	return [4]pointCoordinates{point, rotation90, rotation180, rotation270}
+	return [4]int{index, rotation90, rotation180, rotation270}
 }
 
 func ValidateCardanKey(gridKey *CardanKey, gridSize int) error {
@@ -60,8 +51,7 @@ func ValidateCardanKey(gridKey *CardanKey, gridSize int) error {
 	centerIndex := -1
 
 	if gridSize%2 != 0 {
-		center := pointCoordinates{gridSize / 2, gridSize / 2}
-		centerIndex = pointToIndex(center, gridSize)
+		centerIndex = (gridSize - 1) / 2
 	}
 
 	expectedKeyLen := (maxIndex - gridSize%2) / 4
@@ -90,11 +80,8 @@ func ValidateCardanKey(gridKey *CardanKey, gridSize int) error {
 
 	covered := make(map[int]struct{})
 	for _, index := range key {
-		point := indexToPoint(index, gridSize)
-		rotations := getAllRotations(point, gridSize)
-
-		for _, rpoint := range rotations {
-			rotationIndex := pointToIndex(rpoint, gridSize)
+		rotations := getAllRotations(index, gridSize)
+		for _, rotationIndex := range rotations {
 			if _, exists := covered[rotationIndex]; exists {
 				return fmt.Errorf("index overlap! the key is invalid!")
 			}
@@ -119,17 +106,17 @@ func GenerateCardanKey(gridSize int) (*CardanKey, error) {
 	keyIndex := 0
 	for i := range gridSize / 2 {
 		for j := range gridSize/2 + gridSize%2 {
-			point := pointCoordinates{i, j}
-			if point.row == gridSize/2 && point.col == gridSize/2 {
+			index := i*gridSize + j
+			if i == gridSize/2 && j == gridSize/2 {
 				continue // Skip the center
 			}
 
-			allRotations := getAllRotations(point, gridSize)
+			allRotations := getAllRotations(index, gridSize)
 			randomIndex, err := cryptoRandN(len(allRotations))
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate random index: %w", err)
 			}
-			key[keyIndex] = pointToIndex(allRotations[randomIndex], gridSize)
+			key[keyIndex] = allRotations[randomIndex]
 			keyIndex++
 		}
 	}
@@ -171,13 +158,13 @@ func NewCardanCipher(gridKey *CardanKey, gridSize int) (*CardanCipher, error) {
 			permutationTable[i*len(sortedKey)+j] = index
 			inverseTable[index] = i*len(sortedKey) + j
 			// Rotate the key in-place
-			sortedKey[j] = pointToIndex(rotate90(indexToPoint(index, gridSize), gridSize), gridSize)
+			sortedKey[j] = rotate90(index, gridSize)
 		}
 	}
 
 	// Set the last element to center in an odd grid
 	if gridSize%2 != 0 {
-		center := pointToIndex(pointCoordinates{gridSize / 2, gridSize / 2}, gridSize)
+		center := (gridSize - 1) / 2
 		permutationTable[len(permutationTable)-1] = center
 		inverseTable[center] = len(permutationTable) - 1
 	}
