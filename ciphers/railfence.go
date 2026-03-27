@@ -5,7 +5,6 @@ import "fmt"
 type RailFenceCipher struct {
 	Key              int
 	PermutationTable []int
-	InverseTable     []int
 }
 
 func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
@@ -14,7 +13,6 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 	}
 
 	permutationTable := make([]int, blockSize)
-	inverseTable := make([]int, blockSize)
 
 	if key < 1 {
 		return nil, fmt.Errorf("incorrect key provided: %d", key)
@@ -24,18 +22,15 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 		return &RailFenceCipher{
 			Key:              key,
 			PermutationTable: permutationTable,
-			InverseTable:     inverseTable,
 		}, nil
 	} else if key >= blockSize {
 		for index := range blockSize {
 			permutationTable[index] = blockSize - 1 - index
-			inverseTable[blockSize-1-index] = index
 		}
 
 		return &RailFenceCipher{
 			Key:              key,
 			PermutationTable: permutationTable,
-			InverseTable:     inverseTable,
 		}, nil
 	}
 
@@ -69,14 +64,12 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 
 	for index := range blockSize {
 		permutationTable[index] = railOffset[rails[index]]
-		inverseTable[railOffset[rails[index]]] = index
 		railOffset[rails[index]]++
 	}
 
 	return &RailFenceCipher{
 		Key:              key,
 		PermutationTable: permutationTable,
-		InverseTable:     inverseTable,
 	}, nil
 }
 
@@ -114,7 +107,7 @@ func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
 	}
 
 	for index := range src {
-		dst[rfCipher.InverseTable[index]] = src[index]
+		dst[index] = src[rfCipher.PermutationTable[index]]
 	}
 
 	return nil

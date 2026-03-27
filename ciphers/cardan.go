@@ -10,7 +10,6 @@ import (
 
 type CardanCipher struct {
 	PermutationTable []int
-	InverseTable     []int
 }
 
 type CardanKey struct {
@@ -152,11 +151,9 @@ func NewCardanCipher(gridKey *CardanKey, gridSize int) (*CardanCipher, error) {
 	slices.Sort(sortedKey)
 
 	permutationTable := make([]int, gridSize*gridSize)
-	inverseTable := make([]int, gridSize*gridSize)
 	for i := range 4 {
 		for j, index := range sortedKey {
 			permutationTable[i*len(sortedKey)+j] = index
-			inverseTable[index] = i*len(sortedKey) + j
 			// Rotate the key in-place
 			sortedKey[j] = rotate90(index, gridSize)
 		}
@@ -166,12 +163,10 @@ func NewCardanCipher(gridKey *CardanKey, gridSize int) (*CardanCipher, error) {
 	if gridSize%2 != 0 {
 		center := (gridSize - 1) / 2
 		permutationTable[len(permutationTable)-1] = center
-		inverseTable[center] = len(permutationTable) - 1
 	}
 
 	return &CardanCipher{
 		PermutationTable: permutationTable,
-		InverseTable:     inverseTable,
 	}, nil
 }
 
@@ -199,7 +194,7 @@ func (cCipher *CardanCipher) DecryptBlock(dst []byte, src []byte) error {
 	}
 
 	for i := range len(dst) {
-		dst[cCipher.InverseTable[i]] = src[i]
+		dst[i] = src[cCipher.PermutationTable[i]]
 	}
 
 	return nil
