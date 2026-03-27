@@ -18,7 +18,8 @@ import (
 )
 
 type cardanParams struct {
-	gridKey *ciphers.CardanKey
+	gridKey   *ciphers.CardanKey
+	keyOutput string
 	blockCipherParams
 }
 
@@ -53,8 +54,13 @@ func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) 
 	switch len(args) {
 	case 1:
 		params.blockSize = int(math.Ceil(math.Sqrt(float64(len(args[0])))))
+
 		return params.parseSourceMessageParams(command)
 	case 2:
+		if command.Flags().Changed("export") {
+			return fmt.Errorf("--export can only be used via browser key selection UI")
+		}
+
 		if !fileExists(args[0]) || !strings.HasSuffix(args[0], ".json") {
 			return fmt.Errorf("invalid key file provided: %s", args[0])
 		}
@@ -69,6 +75,10 @@ func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) 
 		return params.parseSourceMessageParams(command)
 
 	case 3:
+		if command.Flags().Changed("export") {
+			return fmt.Errorf("--export can only be used via browser key selection UI")
+		}
+
 		if !fileExists(args[0]) || !strings.HasSuffix(args[0], ".json") {
 			return fmt.Errorf("invalid key file provided: %s", args[0])
 		}
@@ -109,7 +119,18 @@ func cardanRunE(command *cobra.Command, args []string, params *cardanParams, mod
 		if isVerbose {
 			defer benchmark.MeasurePerformance(fmt.Sprintf("cardan %s", mode))()
 		}
-		command.Println(params.gridKey)
+
+		if params.keyOutput != "" {
+			keyFile, err := os.Create(params.keyOutput)
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(keyFile, params.gridKey)
+			command.Printf("Key written to %s\n", params.keyOutput)
+		} else {
+			command.Println(params.gridKey)
+		}
+
 		return cardanRunEMessage(command, args, params, mode)
 
 	case 2:
@@ -159,7 +180,12 @@ func cardanRunEMessage(command *cobra.Command, args []string, params *cardanPara
 		return err
 	}
 
-	command.Println(string(dst))
+	text := string(dst)
+	if mode == ciphers.Decrypt {
+		text = strings.TrimSpace(text)
+	}
+
+	command.Printf("'%s'", text)
 	return nil
 }
 

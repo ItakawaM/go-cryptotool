@@ -81,6 +81,7 @@ Notes:
 	}
 	// cant use params.addFlags, because of block
 	encryptCmd.Flags().IntVarP(&params.numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
+	encryptCmd.Flags().StringVarP(&params.keyOutput, "export", "o", "", "Export the selected key to a file")
 
 	return encryptCmd
 }
@@ -89,9 +90,9 @@ func newCardanDecryptCommand() *cobra.Command {
 	params := &cardanParams{}
 
 	decryptCmd := &cobra.Command{
-		Use:   "decrypt <key> <message | input> [output]",
+		Use:   "decrypt [key] <message | input> [output]",
 		Short: "Decrypt a message or file using a Cardan grille cipher",
-		Args:  cobra.RangeArgs(2, 3),
+		Args:  cobra.RangeArgs(1, 3),
 		Long: `Decrypt messages or files that were encrypted using the Cardan grille cipher.
 
 The Cardan cipher uses a square grille (key) containing holes that
@@ -127,6 +128,7 @@ Notes:
 	}
 	// cant use params.addFlags, because of block
 	decryptCmd.Flags().IntVarP(&params.numCPU, "threads", "t", runtime.NumCPU()/2, "Amount of threads to be used")
+	decryptCmd.Flags().StringVarP(&params.keyOutput, "export", "o", "", "Export the selected key to a file")
 
 	return decryptCmd
 }
