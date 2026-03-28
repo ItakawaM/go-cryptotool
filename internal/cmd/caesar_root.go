@@ -12,13 +12,6 @@ func NewCaesarCommand() *cobra.Command {
 		Long: `The Caesar cipher is a classical substitution cipher that shifts
 each letter in the plaintext by a fixed number of positions
 down the alphabet.
-
-For example, with a shift of 3, A becomes D, B becomes E, and so on.
-After reaching Z, the cipher wraps around to the beginning
-of the alphabet.
-
-This command allows encryption and decryption of messages or files
-using a specified shift value (key).
 `,
 	}
 	caesarCmd.AddCommand(
@@ -32,7 +25,8 @@ using a specified shift value (key).
 }
 
 func newCaesarEncryptCommand() *cobra.Command {
-	params := &caesarParams{}
+	params := &blockCipherParams{}
+	factory := &caesarFactory{}
 
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt <key> <message | input> [output]",
@@ -41,10 +35,7 @@ func newCaesarEncryptCommand() *cobra.Command {
 		Long: `This command allows encryption of messages or files
 using a specified shift value (key).
 
-Each letter in the input is shifted forward in the alphabet
-by the specified number. The alphabet wraps around after Z.
 Non-alphabetic characters remain unchanged.
-
 A shift of 0 results in no transformation.
 
 Examples:
@@ -59,13 +50,12 @@ Notes:
 
   • The shift can be any non-negative integer (negative values are not allowed)
   • The effective shift is calculated modulo 26[a-zA-Z]
-  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return caesarRunE(cmd, args, params, ciphers.Encrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Encrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return caesarPreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(encryptCmd)
@@ -74,7 +64,8 @@ Notes:
 }
 
 func newCaesarDecryptCommand() *cobra.Command {
-	params := &caesarParams{}
+	params := &blockCipherParams{}
+	factory := &caesarFactory{}
 
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt <key> <message | input> [output]",
@@ -83,10 +74,7 @@ func newCaesarDecryptCommand() *cobra.Command {
 		Long: `This command allows decryption of messages or files
 using a specified shift value (key).
 
-Each letter in the input is shifted backward in the alphabet
-by the specified number. The alphabet wraps around after Z.
 Non-alphabetic characters remain unchanged.
-
 A shift of 0 results in no transformation.
 
 Examples:
@@ -101,13 +89,12 @@ Notes:
 
   • The shift can be any non-negative integer (negative values are not allowed)
   • The effective shift is calculated modulo 26[a-zA-Z]
-  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return caesarRunE(cmd, args, params, ciphers.Decrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Decrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return caesarPreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(decryptCmd)
@@ -116,7 +103,7 @@ Notes:
 }
 
 func newCaesarBruteforceCommand() *cobra.Command {
-	params := &caesarParams{}
+	params := &blockCipherParams{}
 
 	bruteforceCmd := &cobra.Command{
 		Use:   "bruteforce <message | input> [output]",
@@ -125,14 +112,7 @@ func newCaesarBruteforceCommand() *cobra.Command {
 		Long: `This command attempts to decrypt a message or file
 by trying all possible shift keys.
 
-Instead of requiring a specific key, the bruteforce mode
-iterates through every possible shift (from 1 up to
-25) and outputs each resulting candidate.
-
-Each letter in the input is shifted backward in the alphabet
-according to the current tested key. The alphabet wraps around after Z.
 Non-alphabetic characters remain unchanged.
-
 This is useful when the original shift key is unknown.
 
 Examples:
@@ -141,13 +121,12 @@ Examples:
     1. go-cryptotool caesar bruteforce "DwwdfnDwGdzq"
 
   Bruteforce a file:
-    1. go-cryptotool caesar bruteforce file.enc output.txt
+    1. go-cryptotool caesar bruteforce file.enc output_directory
 
 Notes:
 
   • All possible shift values are tested automatically
   • The effective shift is calculated modulo 26[a-zA-Z]
-  • For very large files, performance depends on CPU and SSD
   • Output may contain many candidate plaintexts
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -171,19 +150,11 @@ func newCaesarAnalyzeCommand() *cobra.Command {
 probable shift key of a Caesar-encrypted message or file
 using frequency analysis.
 
-Instead of printing all possible shifts, the analyze mode
-decrypts the input with every possible key (from 0 to 25)
-and scores each result based on how closely it matches
-typical English letter frequency.
-
 The scoring method uses statistical comparison (chi-squared)
 between the decrypted text and known English letter distributions.
 The most likely plaintext appears first in the output.
 
 Non-alphabetic characters remain unchanged during analysis.
-
-This mode is useful when the shift key is unknown and you
-want the tool to automatically rank the most probable results.
 
 Examples:
 

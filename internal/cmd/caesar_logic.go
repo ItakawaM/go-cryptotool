@@ -14,79 +14,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type caesarParams struct {
+type caesarFactory struct {
 	key int
-	blockCipherParams
 }
 
-func caesarPreRunE(command *cobra.Command, params *caesarParams, args []string) error {
-	key, err := strconv.Atoi(args[0])
+func (cF *caesarFactory) name() string {
+	return "caesar"
+}
+
+func (cF *caesarFactory) parseKey(keyStr string) error {
+	key, err := strconv.Atoi(keyStr)
 	if err != nil {
 		return err
 	} else if key < 0 {
 		return fmt.Errorf("key can not be negative: %d", key)
 	}
-	params.key = key
-
-	switch len(args[1:]) {
-	case 1:
-		return params.parseSourceMessageParams(command)
-	case 2:
-		if !fileExists(args[1]) {
-			return fmt.Errorf("provided input file does not exist: %s", args[1])
-		}
-		return params.parseSourceFileParams()
-	default:
-		return fmt.Errorf("invalid working mode")
-	}
-}
-
-func caesarRunE(command *cobra.Command, args []string, params *caesarParams, mode ciphers.CipherMode) error {
-	if isVerbose {
-		defer benchmark.MeasurePerformance(fmt.Sprintf("caesar %s", mode))()
-	}
-
-	switch len(args[1:]) {
-	case 1:
-		message := args[1]
-
-		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
-		if caesarErr != nil {
-			return caesarErr
-		}
-
-		buffer := []byte(message)
-
-		var err error
-		switch mode {
-		case ciphers.Encrypt:
-			err = caesarCipher.EncryptBlock(buffer, buffer)
-		case ciphers.Decrypt:
-			err = caesarCipher.DecryptBlock(buffer, buffer)
-		}
-		if err != nil {
-			return err
-		}
-
-		command.Printf("'%s'", string(buffer))
-
-	case 2:
-		inFilePath := args[1]
-		outFilePath := args[2]
-
-		blockSizeBytes := params.blockSize * 1024
-		caesarCipher, caesarErr := ciphers.NewCaesarCipher(params.key)
-		if caesarErr != nil {
-			return caesarErr
-		}
-
-		return engine.NewBlockEngine(blockSizeBytes, params.numCPU).ProcessFile(caesarCipher, mode, inFilePath, outFilePath)
-	}
+	cF.key = key
 
 	return nil
 }
 
-func caesarBruteforcePreRunE(command *cobra.Command, params *caesarParams, args []string) error {
+func (cF *caesarFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
+	return ciphers.NewCaesarCipher(cF.key)
+}
+
+func caesarBruteforcePreRunE(command *cobra.Command, params *blockCipherParams, args []string) error {
 	switch len(args) {
 	case 1:
 		return params.parseSourceMessageParams(command)
@@ -100,7 +52,7 @@ func caesarBruteforcePreRunE(command *cobra.Command, params *caesarParams, args 
 	}
 }
 
-func caesarBruteforceRunE(command *cobra.Command, args []string, params *caesarParams) error {
+func caesarBruteforceRunE(command *cobra.Command, args []string, params *blockCipherParams) error {
 	if isVerbose {
 		defer benchmark.MeasurePerformance("caesar bruteforce")()
 	}
@@ -113,22 +65,21 @@ func caesarBruteforceRunE(command *cobra.Command, args []string, params *caesarP
 		dst := bytes.Clone(src)
 
 		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
-			if caesarErr != nil {
-				return caesarErr
-			}
-
-			err := caesarCipher.DecryptBlock(dst, src)
+			caesarCipher, err := ciphers.NewCaesarCipher(i)
 			if err != nil {
 				return err
 			}
 
-			command.Printf("[%d]: '%s'\n", i, string(dst))
+			err = caesarCipher.DecryptBlock(dst, src)
+			if err != nil {
+				return err
+			}
+
+			command.Printf("[%02d]: '%s'\n", i, string(dst))
 		}
 
 	case 2:
-		inFilePath := args[0]
-		outFilePathFolder := fmt.Sprintf("%s_bruteforce", args[1])
+		inFilePath, outFilePathFolder := args[0], fmt.Sprintf("%s_bruteforce", args[1])
 		if err := os.MkdirAll(outFilePathFolder, 0755); err != nil {
 			return err
 		}
@@ -136,12 +87,12 @@ func caesarBruteforceRunE(command *cobra.Command, args []string, params *caesarP
 		blockSizeBytes := params.blockSize * 1024
 		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
 		for i := range 26 {
-			caesarCipher, caesarErr := ciphers.NewCaesarCipher(i)
-			if caesarErr != nil {
-				return caesarErr
+			caesarCipher, err := ciphers.NewCaesarCipher(i)
+			if err != nil {
+				return err
 			}
 
-			if err := engine.ProcessFile(caesarCipher, ciphers.Decrypt,
+			if err = engine.ProcessFile(caesarCipher, ciphers.Decrypt,
 				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
 				return err
 			}
@@ -159,15 +110,16 @@ func caesarAnalyzeRunE(command *cobra.Command, args []string) error {
 	source := args[0]
 
 	var results []analyze.AnalysisResult
-	var resultsErr error
+	var err error
+
 	analyzer := analyze.NewCaesarAnalyzer()
 	if !fileExists(source) {
-		results, resultsErr = analyzer.AnalyzeBuffer([]byte(source))
+		results, err = analyzer.AnalyzeBuffer([]byte(source))
 	} else {
-		results, resultsErr = analyzer.AnalyzeFile(source)
+		results, err = analyzer.AnalyzeFile(source)
 	}
-	if resultsErr != nil {
-		return resultsErr
+	if err != nil {
+		return err
 	}
 
 	for i := range len(results) {
