@@ -12,9 +12,6 @@ func NewRailFenceCommand() *cobra.Command {
 		Long: `The Rail Fence cipher is a classical transposition cipher that writes
 plaintext in a zigzag pattern across multiple rails and then reads
 it row by row to produce the ciphertext.
-
-This command allows encryption and decryption of messages or files
-using a specified number of rails (key).
 `,
 	}
 	railfenceCmd.AddCommand(
@@ -26,7 +23,8 @@ using a specified number of rails (key).
 }
 
 func newRailFenceEncryptCommand() *cobra.Command {
-	params := &railfenceParams{}
+	params := &blockCipherParams{}
+	factory := &railFenceFactory{}
 
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt <key> <message | input> [output]",
@@ -48,14 +46,12 @@ Examples:
 Notes:
 
   • The key must be >= 1
-  • Larger keys increase computation time
-  • For very large files, performance depends on system memory
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return railfenceRunE(cmd, args, params, ciphers.Encrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Encrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return railfencePreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(encryptCmd)
@@ -64,7 +60,8 @@ Notes:
 }
 
 func newRailFenceDecryptCommand() *cobra.Command {
-	params := &railfenceParams{}
+	params := &blockCipherParams{}
+	factory := &railFenceFactory{}
 
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt <key> <message | input> [output]",
@@ -84,14 +81,12 @@ Examples:
 Notes:
 
   • The key must be >= 1
-  • Larger keys increase computation time
-  • For very large files, performance depends on system memory
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return railfenceRunE(cmd, args, params, ciphers.Decrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Decrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return railfencePreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(decryptCmd)
