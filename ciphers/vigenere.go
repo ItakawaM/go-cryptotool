@@ -18,22 +18,35 @@ func getShift(k byte) byte {
 	return k - 'A'
 }
 
-func NewVigenereCipher(key []byte) (*VigenereCipher, error) {
+func NormalizeVigenereKey(key []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, fmt.Errorf("key cannot be empty")
 	}
 
-	parsedKey := make([]byte, len(key))
+	normalizedKey := make([]byte, len(key))
 	for index, char := range key {
 		if !isASCIILetter(char) {
 			return nil, fmt.Errorf("key can only consist of ASCII letters")
 		}
-		parsedKey[index] = getShift(char)
+		normalizedKey[index] = getShift(char)
+	}
+
+	return normalizedKey, nil
+}
+
+func NewVigenereCipher(key []byte) (*VigenereCipher, error) {
+	normalizedKey, err := NormalizeVigenereKey(key)
+	if err != nil {
+		return nil, err
 	}
 
 	return &VigenereCipher{
-		Key: parsedKey,
+		Key: normalizedKey,
 	}, nil
+}
+
+func NewVigenereCipherNormalized(normalizedKey []byte) *VigenereCipher {
+	return &VigenereCipher{Key: normalizedKey}
 }
 
 func (vCipher *VigenereCipher) IsInPlace() bool {

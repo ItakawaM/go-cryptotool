@@ -15,18 +15,6 @@ that uses a keyword to apply multiple Caesar shifts across the plaintext.
 Each letter in the keyword determines the shift for the corresponding
 letter in the message. The keyword is repeated as needed to match the
 length of the plaintext.
-
-For example, using the keyword "KEY":
-- K shifts the first letter
-- E shifts the second
-- Y shifts the third
-- then the pattern repeats
-
-Unlike the Caesar cipher, this approach makes frequency analysis
-more difficult by distributing shifts across multiple alphabets.
-
-This command allows encryption and decryption of messages or files
-using a specified keyword.
 `,
 	}
 	vigenereCmd.AddCommand(
@@ -38,7 +26,8 @@ using a specified keyword.
 }
 
 func newVigenereEncryptCommand() *cobra.Command {
-	params := &vigenereParams{}
+	params := &blockCipherParams{}
+	factory := &vigenereFactory{}
 
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt <keyword> <message | input> [output]",
@@ -63,13 +52,12 @@ Notes:
   • The keyword must consist of alphabetic characters only [a-zA-Z]
   • Letter shifts are derived from keyword characters (A=0, B=1, ..., Z=25)
   • The keyword is case-insensitive (but case can be preserved in output)
-  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return vigenereRunE(cmd, args, params, ciphers.Encrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Encrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return vigenerePreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(encryptCmd)
@@ -78,7 +66,8 @@ Notes:
 }
 
 func newVigenereDecryptCommand() *cobra.Command {
-	params := &vigenereParams{}
+	params := &blockCipherParams{}
+	factory := &vigenereFactory{}
 
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt <keyword> <message | input> [output]",
@@ -103,13 +92,12 @@ Notes:
   • The keyword must consist of alphabetic characters only [a-zA-Z]
   • Letter shifts are derived from keyword characters (A=0, B=1, ..., Z=25)
   • The keyword is case-insensitive (but case can be preserved in output)
-  • For very large files, performance depends on CPU and SSD
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return vigenereRunE(cmd, args, params, ciphers.Decrypt)
+			return simpleCipherRunE(cmd, args, factory, params, ciphers.Decrypt)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return vigenerePreRunE(cmd, params, args)
+			return simpleCipherPreRunE(cmd, args, factory, params)
 		},
 	}
 	params.addFlags(decryptCmd)
