@@ -62,6 +62,7 @@ Notes:
 		},
 	}
 	params.addFlags(encryptCmd)
+	encryptCmd.Flags().BoolVarP(&factory.autokey, "autokey", "a", false, "Enable autokey variant")
 
 	return encryptCmd
 }
@@ -102,12 +103,14 @@ Notes:
 		},
 	}
 	params.addFlags(decryptCmd)
+	decryptCmd.Flags().BoolVarP(&factory.autokey, "autokey", "a", false, "Enable autokey variant")
 
 	return decryptCmd
 }
 
 func newVigenereBruteforceAttack() *cobra.Command {
 	params := &vigenereBruteforceParams{}
+	var autokey bool
 
 	bruteforceCmd := &cobra.Command{
 		Use:   "bruteforce <wordlist> <message | input> [output]",
@@ -135,13 +138,14 @@ Notes:
   • Output may contain many candidate plaintexts
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return vigenereBruteforceRunE(cmd, args, params)
+			return vigenereBruteforceRunE(cmd, args, params, autokey)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return vigenereBruteforcePreRunE(cmd, args, params)
 		},
 	}
 	params.addFlags(bruteforceCmd)
+	bruteforceCmd.Flags().BoolVarP(&autokey, "autokey", "a", false, "Enable autokey variant")
 
 	return bruteforceCmd
 }

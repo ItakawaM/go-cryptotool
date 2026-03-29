@@ -85,14 +85,14 @@ func caesarBruteforceRunE(command *cobra.Command, args []string, params *blockCi
 		}
 
 		blockSizeBytes := params.blockSize * 1024
-		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
+		blockEngine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
 		for i := range 26 {
 			caesarCipher, err := ciphers.NewCaesarCipher(i)
 			if err != nil {
 				return err
 			}
 
-			if err = engine.ProcessFile(caesarCipher, ciphers.Decrypt,
+			if err = blockEngine.ProcessFile(caesarCipher, ciphers.Decrypt,
 				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
 				return err
 			}

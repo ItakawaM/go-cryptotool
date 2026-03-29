@@ -20,7 +20,8 @@ type vigenereBruteforceParams struct {
 }
 
 type vigenereFactory struct {
-	key []byte
+	key     []byte
+	autokey bool
 }
 
 func (vF *vigenereFactory) name() string {
@@ -38,6 +39,10 @@ func (vF *vigenereFactory) parseKey(keyStr string) error {
 }
 
 func (vF *vigenereFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
+	if vF.autokey {
+		return ciphers.NewVigenereAutoKeyCipherNormalized(vF.key), nil
+	}
+
 	return ciphers.NewVigenereCipherNormalized(vF.key), nil
 }
 
@@ -50,6 +55,7 @@ func vigenereBruteforcePreRunE(command *cobra.Command, args []string, params *vi
 	if err != nil {
 		return err
 	}
+	defer dictionaryFile.Close()
 
 	rawDictionary, err := io.ReadAll(dictionaryFile)
 	if err != nil {
@@ -79,9 +85,9 @@ func vigenereBruteforcePreRunE(command *cobra.Command, args []string, params *vi
 	}
 }
 
-func vigenereBruteforceRunE(command *cobra.Command, args []string, params *vigenereBruteforceParams) error {
+func vigenereBruteforceRunE(command *cobra.Command, args []string, params *vigenereBruteforceParams, autokey bool) error {
 	if isVerbose {
-		defer benchmark.MeasurePerformance("caesar bruteforce")()
+		defer benchmark.MeasurePerformance("vigenere bruteforce")()
 	}
 
 	switch len(args[1:]) {
@@ -91,8 +97,8 @@ func vigenereBruteforceRunE(command *cobra.Command, args []string, params *vigen
 		dst := bytes.Clone(src)
 
 		for word := range params.dictionary {
-			vigenereCipher, _ := ciphers.NewVigenereCipher([]byte(word))
-			if err := vigenereCipher.DecryptBlock(dst, src); err != nil {
+			vigenereVariant := getVigenereVariant(word, autokey)
+			if err := vigenereVariant.DecryptBlock(dst, src); err != nil {
 				return err
 			}
 
@@ -106,10 +112,10 @@ func vigenereBruteforceRunE(command *cobra.Command, args []string, params *vigen
 		}
 
 		blockSizeBytes := params.blockSize * 1024
-		engine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
+		blockEngine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
 		for word := range params.dictionary {
-			vigenereCipher, _ := ciphers.NewVigenereCipher([]byte(word))
-			if err := engine.ProcessFile(vigenereCipher, ciphers.Decrypt,
+			vigenereVariant := getVigenereVariant(word, autokey)
+			if err := blockEngine.ProcessFile(vigenereVariant, ciphers.Decrypt,
 				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%s", word))); err != nil {
 				return err
 			}
@@ -120,4 +126,15 @@ func vigenereBruteforceRunE(command *cobra.Command, args []string, params *vigen
 	}
 
 	return nil
+}
+
+func getVigenereVariant(key string, autokey bool) ciphers.BlockCipher {
+	var vigenereVariant ciphers.BlockCipher
+	if autokey {
+		vigenereVariant, _ = ciphers.NewVigenereAutoKeyCipher([]byte(key))
+	} else {
+		vigenereVariant, _ = ciphers.NewVigenereCipher([]byte(key))
+	}
+
+	return vigenereVariant
 }
