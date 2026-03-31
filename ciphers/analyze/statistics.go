@@ -1,34 +1,15 @@
 package analyze
 
-import (
-	_ "embed"
-	"strings"
-)
-
-// const (
-// 	chiSquaredThreshold        float64 = 200.0
-// 	englishDictionaryThreshold float64 = 0.5
-// )
-
 type letterFrequency struct {
 	letter    byte
 	frequency float64
 }
 
-//go:embed english_words.txt
-var englishWordsFile []byte
-
 type statisticsModel struct {
-	englishWordsDictionary   map[string]struct{}
 	englishLetterFrequencies [26]letterFrequency
 }
 
 func newStatisticsModel() *statisticsModel {
-	dictionary := make(map[string]struct{})
-	for word := range strings.FieldsSeq(strings.ToLower(string(englishWordsFile))) {
-		dictionary[word] = struct{}{}
-	}
-
 	var englishFrequencies = [26]letterFrequency{
 		{'a', 8.167},
 		{'b', 1.492},
@@ -59,7 +40,6 @@ func newStatisticsModel() *statisticsModel {
 	}
 
 	return &statisticsModel{
-		englishWordsDictionary:   dictionary,
 		englishLetterFrequencies: englishFrequencies,
 	}
 }
@@ -72,13 +52,14 @@ func (model *statisticsModel) calculateLetterFrequencies(buffer []byte) [26]lett
 
 	total := 0.0
 	for _, char := range buffer {
-		if char >= 'a' && char <= 'z' {
+		switch {
+		case char >= 'a' && char <= 'z':
 			frequencies[char-'a'].frequency++
-			total++
-		} else if char >= 'A' && char <= 'Z' {
+
+		case char >= 'A' && char <= 'Z':
 			frequencies[char-'A'].frequency++
-			total++
 		}
+		total++
 	}
 
 	if total == 0 {
@@ -101,21 +82,4 @@ func (model *statisticsModel) calculateChiSquared(frequencies [26]letterFrequenc
 	}
 
 	return score
-}
-
-func (model *statisticsModel) calculateEnglish(buffer []byte) float64 {
-	words := strings.Fields(strings.ToLower(string(buffer)))
-	if len(words) == 0 {
-		return 0
-	}
-
-	matches := 0
-	for _, word := range words {
-		word = strings.Trim(word, ".,!?;:\"'()-")
-		if _, ok := model.englishWordsDictionary[word]; ok {
-			matches += 1
-		}
-	}
-
-	return float64(matches) / float64(len(words))
 }

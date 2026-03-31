@@ -120,17 +120,17 @@ func caesarAnalyzeRunE(args []string) error {
 	if !fileExists(source) {
 		results, err = analyzer.AnalyzeBuffer([]byte(source))
 	} else {
-		results, err = analyzer.AnalyzeFile(source)
+		results, err = analyze.AnalyzeFile(analyzer, source)
 	}
 	if err != nil {
 		return err
 	}
 
 	tab := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tab, "Key\tChi\tEnglish")
+	fmt.Fprintln(tab, "Key\tChi")
 	for _, result := range results {
-		fmt.Fprintf(tab, "%02d\t%.3f\t%.3f\n",
-			result.Key, result.ChiScore, result.EnglishScore)
+		fmt.Fprintf(tab, "%02d\t%.3f\n",
+			result.Key, result.ChiScore)
 	}
 	tab.Flush()
 

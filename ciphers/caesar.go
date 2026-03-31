@@ -21,15 +21,18 @@ func NewCaesarCipher(key int) (*CaesarCipher, error) {
 
 	for i := range 256 {
 		char := byte(i)
-		if char >= 'a' && char <= 'z' {
+		switch {
+		case char >= 'a' && char <= 'z':
 			newChar := 'a' + (char-'a'+parsedKey)%26
 			substitutionTable[char] = newChar
 			reverseTable[newChar] = char
-		} else if char >= 'A' && char <= 'Z' {
+
+		case char >= 'A' && char <= 'Z':
 			newChar := 'A' + (char-'A'+parsedKey)%26
 			substitutionTable[char] = newChar
 			reverseTable[newChar] = char
-		} else {
+
+		default:
 			substitutionTable[char] = char
 			reverseTable[char] = char
 		}
