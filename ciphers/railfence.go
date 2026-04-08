@@ -1,12 +1,27 @@
+// Package ciphers provides implementations of various classical and modern encryption ciphers.
 package ciphers
 
 import "fmt"
 
+/*
+RailFenceCipher is a transposition cipher that writes plaintext in a zigzag pattern
+across a number of "rails" and then reads off row by row.
+
+The key specifies the number of rails to use.
+*/
 type RailFenceCipher struct {
 	Key              int
 	PermutationTable []int
 }
 
+/*
+NewRailFenceCipher creates a new Rail Fence cipher with the given key and block size.
+
+The key is the number of rails (must be >= 1).
+The block size is the size of plaintext blocks (must be > 0).
+
+Returns an error if the key is < 1 or block size is <= 0.
+*/
 func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 	if blockSize <= 0 {
 		return nil, fmt.Errorf("incorrect blockSize provided: %d", blockSize)
@@ -73,10 +88,23 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 	}, nil
 }
 
+/*
+IsInPlace returns whether the cipher can perform encryption/decryption in-place.
+
+Rail Fence cipher does not support in-place operations since bytes are written
+to non-sequential positions, requiring a separate destination buffer.
+*/
 func (rfCipher *RailFenceCipher) IsInPlace() bool {
 	return false
 }
 
+/*
+EncryptBlock encrypts src using the Rail Fence cipher and writes the result to dst.
+
+src and dst cannot alias.
+
+src and dst must be the same length and must match the blockSize used when creating the cipher.
+*/
 func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
 	blockSize := len(rfCipher.PermutationTable)
 	if len(src) != blockSize || len(dst) != blockSize {
@@ -95,6 +123,13 @@ func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
 	return nil
 }
 
+/*
+DecryptBlock decrypts src using the Rail Fence cipher and writes the result to dst.
+
+src and dst cannot alias.
+
+src and dst must be the same length and must match the blockSize used when creating the cipher.
+*/
 func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
 	blockSize := len(rfCipher.PermutationTable)
 	if len(src) != blockSize || len(dst) != blockSize {

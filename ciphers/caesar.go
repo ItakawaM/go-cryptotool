@@ -59,11 +59,9 @@ func NewCaesarCipher(key int) (*CaesarCipher, error) {
 }
 
 /*
-IsInPlace returns true for Caesar cipher.
-
 IsInPlace returns whether the cipher can perform encryption/decryption in-place.
 
-In-place operations allow src and dst slices to alias.
+Caesar cipher supports in-place operations.
 */
 func (cc *CaesarCipher) IsInPlace() bool {
 	return true
