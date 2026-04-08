@@ -1,7 +1,13 @@
+// Package ciphers provides implementations of various classical and modern encryption ciphers.
 package ciphers
 
 import "fmt"
 
+/*
+VigenereCipher is a polyalphabetic substitution cipher that uses a keyword
+to encrypt messages by shifting each letter by a different amount based on
+the corresponding letter in the key.
+*/
 type VigenereCipher struct {
 	Key []byte
 }
@@ -18,6 +24,12 @@ func getShift(k byte) byte {
 	return k - 'A'
 }
 
+/*
+NormalizeVigenereKey normalizes a Vigenere key by converting all letters to lowercase
+and returning only the shift values (a=0, b=1, ..., z=25).
+
+Returns an error if the key is empty or contains non-letter characters.
+*/
 func NormalizeVigenereKey(key []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, fmt.Errorf("key cannot be empty")
@@ -34,6 +46,13 @@ func NormalizeVigenereKey(key []byte) ([]byte, error) {
 	return normalizedKey, nil
 }
 
+/*
+NewVigenereCipher creates a new Vigenere cipher with the given key.
+
+The key must be a non-empty string of ASCII letters.
+
+Returns an error if the key is invalid.
+*/
 func NewVigenereCipher(key []byte) (*VigenereCipher, error) {
 	normalizedKey, err := NormalizeVigenereKey(key)
 	if err != nil {
@@ -45,14 +64,31 @@ func NewVigenereCipher(key []byte) (*VigenereCipher, error) {
 	}, nil
 }
 
+/*
+NewVigenereCipherNormalized creates a new Vigenere cipher with an already normalized key.
+*/
 func NewVigenereCipherNormalized(normalizedKey []byte) *VigenereCipher {
 	return &VigenereCipher{Key: normalizedKey}
 }
 
+/*
+IsInPlace returns whether the cipher can perform encryption/decryption in-place.
+
+Vigenere cipher supports in-place operations.
+*/
 func (vCipher *VigenereCipher) IsInPlace() bool {
 	return true
 }
 
+/*
+EncryptBlock encrypts src using the Vigenere cipher and writes the result to dst.
+
+The key cycles over letter characters only; non-letter characters are passed through unchanged.
+
+src and dst can alias, because Vigenere cipher performs operations in-place.
+
+src and dst must be the same length.
+*/
 func (vCipher *VigenereCipher) EncryptBlock(dst []byte, src []byte) error {
 	if len(dst) != len(src) {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
@@ -78,6 +114,15 @@ func (vCipher *VigenereCipher) EncryptBlock(dst []byte, src []byte) error {
 	return nil
 }
 
+/*
+DecryptBlock decrypts src using the Vigenere cipher and writes the result to dst.
+
+The key cycles over letter characters only; non-letter characters are passed through unchanged.
+
+src and dst can alias, because Vigenere cipher performs operations in-place.
+
+src and dst must be the same length.
+*/
 func (vCipher *VigenereCipher) DecryptBlock(dst []byte, src []byte) error {
 	if len(dst) != len(src) {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
