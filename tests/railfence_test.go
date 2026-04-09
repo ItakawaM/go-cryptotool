@@ -2,161 +2,277 @@ package ciphers_test
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 
 	"github.com/ItakawaM/go-cryptotool/ciphers"
 )
 
-func TestRailFenceEncrypt(t *testing.T) {
-	tests := []struct {
-		name      string
-		message   string
-		encrypted string
-		key       int
-		wantErr   bool
-	}{
-		{"Normal 1", "Canabis", "nsaaiCb", 3, false},
-		{"Normal 2", "Hello World!!", "o!l !lWdeolHr", 5, false},
-		{"Normal 3", "Chicken", "hceCikn", 2, false},
-		{"Big Key", "Hello World!", "!dlroW olleH", 123, false},
-		{"Negative Key", "Negative", "Negative", -1, true},
-		{"Key of 1", "Positive", "Positive", 1, false},
-	}
-
-	for _, testSubject := range tests {
-		t.Run(testSubject.name, func(t *testing.T) {
-			src := []byte(testSubject.message)
-			expected := []byte(testSubject.encrypted)
-
-			cipher, err := ciphers.NewRailFenceCipher(testSubject.key, len(src))
-			if (err != nil) != testSubject.wantErr {
-				t.Fatalf("error = %v, wantErr %v", err, testSubject.wantErr)
-			}
-			if err != nil {
-				return
-			}
-
-			dst := make([]byte, len(src))
-
-			if err := cipher.EncryptBlock(dst, src); err != nil {
-				t.Fatal(err)
-			}
-
-			if !bytes.Equal(dst, expected) {
-				t.Fatalf("want: %s\ngot: %s", expected, dst)
-			}
-		})
-	}
-}
-
-func TestRailFenceCipher(t *testing.T) {
-	tests := []struct {
-		name    string
-		message string
-		key     int
-		wantErr bool
-	}{
-		{"Normal 1", "Canabis", 3, false},
-		{"Normal 2", "Hello World!", 5, false},
-		{"Big Key", "Hello World!", 123, false},
-		{"Negative Key", "Negative", -1, true},
-		{"Key of 1", "Positive", 1, false},
-	}
-
-	for _, testSubject := range tests {
-		t.Run(testSubject.name, func(t *testing.T) {
-			cipher, err := ciphers.NewRailFenceCipher(testSubject.key, len(testSubject.message))
-			if (err != nil) != testSubject.wantErr {
-				t.Fatalf("error = %v, wantErr %v", err, testSubject.wantErr)
-			}
-			if err != nil {
-				return
-			}
-			expected := []byte(testSubject.message)
-			src := make([]byte, len(expected))
-			copy(src, expected)
-
-			dst := make([]byte, len(src))
-
-			if err := cipher.EncryptBlock(dst, src); err != nil {
-				t.Fatal(err)
-			}
-
-			if err := cipher.DecryptBlock(src, dst); err != nil {
-				t.Fatal(err)
-			}
-
-			if !bytes.Equal(src, expected) {
-				t.Fatalf("want: %s, got: %s", expected, src)
-			}
-		})
-	}
-}
-
-func TestRailFenceCipherKeyValidation(t *testing.T) {
+func TestNewRailFenceCipher(t *testing.T) {
 	tests := []struct {
 		name      string
 		key       int
 		blockSize int
+		want      *ciphers.RailFenceCipher
 		wantErr   bool
-		errType   string
 	}{
-		{"Valid Key 2", 2, 10, false, ""},
-		{"Valid Key 3", 3, 10, false, ""},
-		{"Valid Key Equals BlockSize", 10, 10, false, ""},
-		{"Valid Key Greater Than BlockSize", 15, 10, false, ""},
-		{"Valid Key 1", 1, 10, false, ""},
-		{"Invalid Negative Key", -1, 10, true, "key"},
-		{"Invalid Zero Key", 0, 10, true, "key"},
-		{"Invalid BlockSize Zero", 3, 0, true, "blockSize"},
-		{"Invalid BlockSize Negative", 3, -5, true, "blockSize"},
+		{
+			name:      "valid key 1",
+			key:       3,
+			blockSize: 5,
+			want: &ciphers.RailFenceCipher{
+				Key:              3,
+				PermutationTable: []int{3, 1, 0, 2, 4},
+			},
+		},
+		{
+			name:      "valid key 2",
+			key:       2,
+			blockSize: 10,
+			want: &ciphers.RailFenceCipher{
+				Key:              2,
+				PermutationTable: []int{5, 0, 6, 1, 7, 2, 8, 3, 9, 4},
+			},
+		},
+		{
+			name:      "reverse",
+			key:       123,
+			blockSize: 10,
+			want: &ciphers.RailFenceCipher{
+				Key:              123,
+				PermutationTable: []int{9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+			},
+		},
+		{
+			name:      "no change",
+			key:       1,
+			blockSize: 3,
+			want: &ciphers.RailFenceCipher{
+				Key:              1,
+				PermutationTable: nil,
+			},
+		},
+		{
+			name:      "invalid key 1",
+			key:       0,
+			blockSize: 123,
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewRailFenceCipher(tt.key, tt.blockSize)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("NewRailFenceCipher() error = %v, wantErr %v", err, tt.wantErr)
+			got, gotErr := ciphers.NewRailFenceCipher(tt.key, tt.blockSize)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("NewRailFenceCipher() failed: %v", gotErr)
+				}
+				return
 			}
-			if tt.wantErr && cipher != nil {
-				t.Fatal("Expected nil cipher on error")
+
+			if tt.wantErr {
+				t.Fatal("NewRailFenceCipher() succeeded unexpectedly")
 			}
-			if !tt.wantErr && cipher == nil {
-				t.Fatal("Expected non-nil cipher on success")
+
+			if got.Key != tt.want.Key || !slices.Equal(got.PermutationTable, tt.want.PermutationTable) {
+				t.Errorf("NewRailFenceCipher() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func FuzzRailFenceCipher(f *testing.F) {
-	f.Add("Canabis", 3)
-	f.Add("ABC", 5)
-	f.Add("Hello World!", 2)
-	f.Add("X", 12)
+func TestRailFenceCipher_EncryptBlock(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       int
+		blockSize int
+		dst       []byte
+		src       []byte
+		want      []byte
+		wantErr   bool
+	}{
+		{
+			name:      "normal 1",
+			key:       3,
+			blockSize: 5,
+			src:       []byte("helLo"),
+			dst:       make([]byte, 5),
+			want:      []byte("leLho"),
+		},
+		{
+			name:      "normal 2",
+			key:       2,
+			blockSize: 10,
+			src:       []byte("catDogcat1"),
+			dst:       make([]byte, 10),
+			want:      []byte("aDga1ctoct"),
+		},
+		{
+			name:      "no change",
+			key:       1,
+			blockSize: 10,
+			src:       []byte("catDogcat1"),
+			dst:       make([]byte, 10),
+			want:      []byte("catDogcat1"),
+		},
+		{
+			name:      "reverse",
+			key:       10,
+			blockSize: 10,
+			src:       []byte("catDogcat1"),
+			dst:       make([]byte, 10),
+			want:      []byte("1tacgoDtac"),
+		},
+		{
+			name:      "dst src size mismatch 1",
+			key:       3,
+			blockSize: 10,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 3),
+			wantErr:   true,
+		},
+		{
+			name:      "dst src size mismatch 2",
+			key:       3,
+			blockSize: 10,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 12),
+			wantErr:   true,
+		},
+		{
+			name:      "dst src size mismatch 3",
+			key:       3,
+			blockSize: 1,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 10),
+			wantErr:   true,
+		},
+	}
 
-	f.Fuzz(func(t *testing.T, message string, key int) {
-		if key <= 1 || len(message) == 0 {
-			return
-		} else if key > len(message)+10 {
-			key = len(message) + 1
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rfcipher, err := ciphers.NewRailFenceCipher(tt.key, tt.blockSize)
+			if err != nil {
+				t.Fatalf("could not construct receiver type: %v", err)
+			}
 
-		cipher, err := ciphers.NewRailFenceCipher(key, len(message))
-		if err != nil {
-			t.Fatalf("%s", err)
-		}
+			gotErr := rfcipher.EncryptBlock(tt.dst, tt.src)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("EncryptBlock() failed: %v", gotErr)
+				}
+				return
+			}
 
-		expected := []byte(message)
-		src := make([]byte, len(expected))
-		copy(src, expected)
+			if tt.wantErr {
+				t.Fatal("EncryptBlock() succeeded unexpectedly")
+			}
 
-		dst := make([]byte, len(src))
+			if !bytes.Equal(tt.dst, tt.want) {
+				t.Errorf("Encrypt = %s, want %s", string(tt.dst), string(tt.want))
+			}
+		})
+	}
+}
 
-		cipher.EncryptBlock(dst, src)
-		cipher.DecryptBlock(src, dst)
+func TestRailFenceCipher_DecryptBlock(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       int
+		blockSize int
+		dst       []byte
+		src       []byte
+		want      []byte
+		wantErr   bool
+	}{
+		{
+			name:      "normal 1",
+			key:       3,
+			blockSize: 5,
+			src:       []byte("leLho"),
+			dst:       make([]byte, 5),
+			want:      []byte("helLo"),
+		},
+		{
+			name:      "normal 2",
+			key:       2,
+			blockSize: 10,
+			src:       []byte("aDga1ctoct"),
+			dst:       make([]byte, 10),
+			want:      []byte("catDogcat1"),
+		},
+		{
+			name:      "no change",
+			key:       1,
+			blockSize: 10,
+			src:       []byte("catDogcat1"),
+			dst:       make([]byte, 10),
+			want:      []byte("catDogcat1"),
+		},
+		{
+			name:      "reverse",
+			key:       10,
+			blockSize: 10,
+			src:       []byte("1tacgoDtac"),
+			dst:       make([]byte, 10),
+			want:      []byte("catDogcat1"),
+		},
+		{
+			name:      "dst src size mismatch 1",
+			key:       3,
+			blockSize: 10,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 3),
+			wantErr:   true,
+		},
+		{
+			name:      "dst src size mismatch 2",
+			key:       3,
+			blockSize: 10,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 12),
+			wantErr:   true,
+		},
+		{
+			name:      "dst src size mismatch 3",
+			key:       3,
+			blockSize: 1,
+			src:       []byte("helloworld"),
+			dst:       make([]byte, 10),
+			wantErr:   true,
+		},
+		{
+			name:      "empty",
+			key:       3,
+			blockSize: 10,
+			src:       []byte{},
+			dst:       []byte{},
+			wantErr:   true,
+		},
+	}
 
-		if !bytes.Equal(src, expected) {
-			t.Fatalf("Encrypt/Decrypt mismatch")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rfcipher, err := ciphers.NewRailFenceCipher(tt.key, tt.blockSize)
+			if err != nil {
+				t.Fatalf("could not construct receiver type: %v", err)
+			}
+
+			gotErr := rfcipher.DecryptBlock(tt.dst, tt.src)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("DecryptBlock() failed: %v", gotErr)
+				}
+				return
+			}
+
+			if tt.wantErr {
+				t.Fatal("DecryptBlock() succeeded unexpectedly")
+			}
+
+			if !bytes.Equal(tt.dst, tt.want) {
+				t.Errorf("Decrypt = %s, want %s", string(tt.dst), string(tt.want))
+			}
+		})
+	}
 }

@@ -18,6 +18,9 @@ type RailFenceCipher struct {
 NewRailFenceCipher creates a new Rail Fence cipher with the given key and block size.
 
 The key is the number of rails (must be >= 1).
+
+If key is 0, PermutationTable becomes nil. EncryptBlock() and DecryptBlock() handle the key == 1 case separately.
+
 The block size is the size of plaintext blocks (must be > 0).
 
 Returns an error if the key is < 1 or block size is <= 0.
@@ -36,7 +39,7 @@ func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
 		// Encrypt() Decrypt() handle the key == 1 option
 		return &RailFenceCipher{
 			Key:              key,
-			PermutationTable: permutationTable,
+			PermutationTable: nil,
 		}, nil
 	} else if key >= blockSize {
 		for index := range blockSize {
@@ -107,7 +110,7 @@ src and dst must be the same length and must match the blockSize used when creat
 */
 func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
 	blockSize := len(rfCipher.PermutationTable)
-	if len(src) != blockSize || len(dst) != blockSize {
+	if (len(src) != blockSize || len(dst) != blockSize) && rfCipher.PermutationTable != nil {
 		return fmt.Errorf("block size mismatch: expected %d, got src=%d dst=%d", blockSize, len(src), len(dst))
 	}
 
@@ -132,7 +135,7 @@ src and dst must be the same length and must match the blockSize used when creat
 */
 func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
 	blockSize := len(rfCipher.PermutationTable)
-	if len(src) != blockSize || len(dst) != blockSize {
+	if (len(src) != blockSize || len(dst) != blockSize) && rfCipher.PermutationTable != nil {
 		return fmt.Errorf("block size mismatch: expected %d, got src=%d dst=%d", blockSize, len(src), len(dst))
 	}
 
