@@ -21,6 +21,7 @@ length of the plaintext.
 		newVigenereEncryptCommand(),
 		newVigenereDecryptCommand(),
 		newVigenereBruteforceAttack(),
+		newVigenereAnalyzeCommand(),
 	)
 
 	return vigenereCmd
@@ -148,4 +149,41 @@ Notes:
 	bruteforceCmd.Flags().BoolVarP(&autokey, "autokey", "a", false, "Enable autokey variant")
 
 	return bruteforceCmd
+}
+
+func newVigenereAnalyzeCommand() *cobra.Command {
+	analyzeCmd := &cobra.Command{
+		Use:   "analyze <message | input>",
+		Short: "Attempt to recover the Vigenère key using Kasiski examination and frequency analysis",
+		Args:  cobra.ExactArgs(1),
+		Long: `This command analyzes a message or file encrypted with the Vigenère cipher
+to estimate the most likely key.
+
+It first applies the Kasiski examination to determine probable key lengths by
+detecting repeated substrings and analyzing the distances between them.
+Then, for each candidate key length, it performs frequency analysis on
+each segment of the ciphertext to recover the most likely key.
+
+Examples:
+
+  Analyze ciphertext from input text:
+    1. go-cryptotool vigenere analyze "SOMETEXTHERE"
+
+  Analyze a file:
+    1. go-cryptotool vigenere analyze file.enc
+
+Notes:
+
+  • Repeated substrings are used to estimate key length candidates
+  • Frequency analysis is applied to recover the key from each candidate length
+  • Output may include multiple possible keys
+  • Non-alphabetic characters are ignored during analysis
+  • Works best on longer ciphertexts with typical language distribution
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return vigenereAnalyzeRunE(args)
+		},
+	}
+
+	return analyzeCmd
 }

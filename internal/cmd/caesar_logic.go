@@ -129,7 +129,7 @@ func caesarAnalyzeRunE(args []string) error {
 	tab := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tab, "Key\tChi")
 	for _, result := range results {
-		fmt.Fprintf(tab, "%02d\t%.3f\n",
+		fmt.Fprintf(tab, "%02d\t%.4f\n",
 			result.Key, result.ChiScore)
 	}
 	tab.Flush()

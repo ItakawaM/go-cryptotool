@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/ItakawaM/go-cryptotool/ciphers"
+	"github.com/ItakawaM/go-cryptotool/ciphers/analyze"
 	"github.com/ItakawaM/go-cryptotool/internal/benchmark"
 	"github.com/ItakawaM/go-cryptotool/internal/engine"
 	"github.com/spf13/cobra"
@@ -141,4 +142,35 @@ func getVigenereVariant(key string, autokey bool) ciphers.BlockCipher {
 	}
 
 	return vigenereVariant
+}
+
+func vigenereAnalyzeRunE(args []string) error {
+	if isVerbose {
+		defer benchmark.MeasurePerformance("vigenere analyze")()
+	}
+
+	source := args[0]
+
+	var results []analyze.VigenereResult
+	var err error
+
+	analyzer := analyze.NewVigenereAnalyzer(13) // Lucky number
+	if !fileExists(source) {
+		results, err = analyzer.AnalyzeBuffer([]byte(source))
+	} else {
+		results, err = analyze.AnalyzeFile(analyzer, source)
+	}
+	if err != nil {
+		return err
+	}
+
+	tab := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tab, "Key\tChi")
+	for _, result := range results {
+		fmt.Fprintf(tab, "'%s'\t%.4f\n",
+			result.Key, result.ChiScore)
+	}
+	tab.Flush()
+
+	return nil
 }
