@@ -23,16 +23,28 @@ func (mode CipherMode) String() string {
 	return "decrypt"
 }
 
+/*
+IsASCIILetter checks whether the provided char is an ASCII a-zA-Z letter.
+*/
 func IsASCIILetter(char byte) bool {
 	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')
 }
 
-func GetShift(k byte) byte {
-	if k >= 'a' && k <= 'z' {
-		return k - 'a'
+/*
+GetShift normalizes ASCII a-zA-Z letters to 0-25, where A is 0 and Z is 25.
+
+If the provided char is not a-zA-Z, returns the char.
+*/
+func GetShift(char byte) byte {
+	switch {
+	case char >= 'a' && char <= 'z':
+		return char - 'a'
+
+	case char >= 'A' && char <= 'Z':
+		return char - 'A'
 	}
 
-	return k - 'A'
+	return char
 }
 
 /*
