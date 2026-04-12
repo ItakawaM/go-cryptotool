@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/ItakawaM/go-cryptotool/ciphers"
@@ -16,9 +17,12 @@ func NewCaesarAnalyzer() *CaesarAnalyzer {
 	}
 }
 
-func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]AnalysisResult, error) {
-	var results []AnalysisResult
+func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]CaesarResult, error) {
+	if len(buffer) == 0 {
+		return nil, fmt.Errorf("buffer cannot be empty")
+	}
 
+	results := make([]CaesarResult, 26)
 	dst := make([]byte, len(buffer))
 
 	frequencies := calculateLetterFrequencies(buffer, true)
@@ -27,7 +31,7 @@ func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]AnalysisResult, 
 	})
 
 	englishMax := byte('e')
-	for _, candidate := range frequencies {
+	for i, candidate := range frequencies {
 		key := (candidate.letter - englishMax + 26) % 26
 
 		caesarCipher, err := ciphers.NewCaesarCipher(int(key))
@@ -39,10 +43,10 @@ func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]AnalysisResult, 
 		newFrequencies := calculateLetterFrequencies(dst, true)
 		decryptedScore := analyzer.model.calculateChiSquared(newFrequencies)
 
-		results = append(results, AnalysisResult{
+		results[i] = CaesarResult{
 			Key:      key,
 			ChiScore: decryptedScore,
-		})
+		}
 	}
 
 	sort.Slice(results, func(i, j int) bool {

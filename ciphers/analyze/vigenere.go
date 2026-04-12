@@ -1,18 +1,93 @@
 package analyze
 
 import (
+	"fmt"
 	"math"
 	"sort"
+
+	"github.com/ItakawaM/go-cryptotool/ciphers"
 )
+
+type VigenereAnalyzer struct {
+	shiftAnalyzer *CaesarAnalyzer
+	nGramTree     *tree
+}
+
+func NewVigenereAnalyzer(maxNgramLength int) *VigenereAnalyzer {
+	return &VigenereAnalyzer{
+		shiftAnalyzer: NewCaesarAnalyzer(),
+		nGramTree:     newTree(maxNgramLength),
+	}
+}
+
+func (analyzer *VigenereAnalyzer) AnalyzeBuffer(buffer []byte) ([]VigenereResult, error) {
+	if len(buffer) == 0 {
+		return nil, fmt.Errorf("buffer cannot be empty")
+	}
+	analyzer.nGramTree = newTree(analyzer.nGramTree.maxHeight)
+
+	cleanedBuffer := cleanBuffer(buffer)
+	textLength := len(cleanedBuffer)
+
+	analyzer.nGramTree.insertAllNgrams(normalizeBuffer(cleanedBuffer))
+	possibleKeyLengths := analyzer.calculateKeyLength()
+	possibleKeyLengths = possibleKeyLengths[:min(10, len(possibleKeyLengths))]
+
+	results := make([]VigenereResult, min(10, len(possibleKeyLengths)))
+	dst := make([]byte, textLength)
+
+	for candidateIndex := range possibleKeyLengths {
+		candidate := possibleKeyLengths[candidateIndex].number
+		shiftBuffers := make([][]byte, candidate)
+		for i := range shiftBuffers {
+			shiftBuffers[i] = make([]byte, 0, int(math.Ceil(float64(textLength)/float64(candidate))))
+		}
+
+		possibleKey := make([]byte, candidate)
+		for i := range candidate {
+			for j := i; j < textLength; j += candidate {
+				shiftBuffers[i] = append(shiftBuffers[i], cleanedBuffer[j])
+			}
+
+			shiftResults, err := analyzer.shiftAnalyzer.AnalyzeBuffer(shiftBuffers[i])
+			if err != nil {
+				return nil, err
+			}
+
+			possibleKey[i] = (shiftResults[0].Key + 'a')
+		}
+
+		cipher, err := ciphers.NewVigenereCipher(possibleKey)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := cipher.DecryptBlock(dst, cleanedBuffer); err != nil {
+			return nil, err
+		}
+
+		chiScore := analyzer.shiftAnalyzer.model.calculateChiSquared(calculateLetterFrequencies(dst, true))
+		results[candidateIndex] = VigenereResult{
+			Key:      possibleKey,
+			ChiScore: chiScore,
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ChiScore < results[j].ChiScore
+	})
+
+	return results, nil
+}
 
 type factor struct {
 	number int
 	count  int
 }
 
-func processDistances(ngrams []nGramCount) []factor {
+func (analyzer *VigenereAnalyzer) calculateKeyLength() []factor {
 	distances := make([]int, 0)
-	for _, ngram := range ngrams {
+	for _, ngram := range analyzer.nGramTree.collectNgrams() {
 		for i := range len(ngram.positions) - 1 {
 			distances = append(distances, ngram.positions[i+1]-ngram.positions[i])
 		}
@@ -40,5 +115,3 @@ func processDistances(ngrams []nGramCount) []factor {
 
 	return results
 }
-
-// TODO: Implement key calculation

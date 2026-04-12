@@ -13,8 +13,11 @@ type tree struct {
 	maxHeight int
 }
 
-func newTree() *tree {
-	return &tree{root: &treeNode{}}
+func newTree(maxHeight int) *tree {
+	return &tree{
+		root:      &treeNode{},
+		maxHeight: maxHeight,
+	}
 }
 
 func (t *tree) insertNgram(ngram []byte, position int) {
@@ -48,7 +51,7 @@ type nGramCount struct {
 
 func (t *tree) collectNgrams() []nGramCount {
 	var results []nGramCount
-	buffer := make([]byte, 0, t.maxHeight)
+	buffer := make([]byte, t.maxHeight)
 
 	collectNgramsHelper(t.root, buffer[:], 0, &results)
 	filteredResults := make([]nGramCount, 0, len(results))

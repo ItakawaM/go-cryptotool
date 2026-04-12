@@ -113,7 +113,7 @@ func caesarAnalyzeRunE(args []string) error {
 
 	source := args[0]
 
-	var results []analyze.AnalysisResult
+	var results []analyze.CaesarResult
 	var err error
 
 	analyzer := analyze.NewCaesarAnalyzer()
