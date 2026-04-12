@@ -7,21 +7,29 @@ import (
 	"github.com/ItakawaM/go-cryptotool/ciphers"
 )
 
-// CaesarAnalyzer performs statistical analysis to crack Caesar cipher encrypted text.
-// It uses chi-squared frequency analysis to determine the most likely key.
+/*
+CaesarAnalyzer performs statistical analysis to crack Caesar cipher encrypted text.
+
+It uses chi-squared frequency analysis to determine the most likely key.
+*/
 type CaesarAnalyzer struct {
 	model *statisticsModel
 }
 
-// NewCaesarAnalyzer creates a new CaesarAnalyzer instance.
+/*
+NewCaesarAnalyzer creates a new CaesarAnalyzer instance.
+*/
 func NewCaesarAnalyzer() *CaesarAnalyzer {
 	return &CaesarAnalyzer{
 		model: newStatisticsModel(),
 	}
 }
 
-// AnalyzeBuffer analyzes the given buffer to find the most likely Caesar cipher key.
-// It returns a slice of CaesarResult sorted by chi-squared score (best match first).
+/*
+AnalyzeBuffer analyzes the given buffer to find the most likely Caesar cipher key.
+
+It returns a slice of CaesarResult sorted by chi-squared score (best match first).
+*/
 func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]CaesarResult, error) {
 	if len(buffer) == 0 {
 		return nil, fmt.Errorf("buffer cannot be empty")

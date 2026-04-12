@@ -8,16 +8,22 @@ import (
 	"github.com/ItakawaM/go-cryptotool/ciphers"
 )
 
-// VigenereAnalyzer performs statistical analysis to crack Vigenère cipher encrypted text.
-// It uses n-gram frequency analysis and Kasiski examination to determine the key length,
-// then applies Caesar cipher analysis to each character position to recover the key.
+/*
+VigenereAnalyzer performs statistical analysis to crack Vigenère cipher encrypted text.
+
+It uses n-gram frequency analysis and Kasiski examination to determine the key length,
+then applies Caesar cipher analysis to each character position to recover the key.
+*/
 type VigenereAnalyzer struct {
 	shiftAnalyzer *CaesarAnalyzer
 	nGramTree     *tree
 }
 
-// NewVigenereAnalyzer creates a new VigenereAnalyzer instance.
-// The maxNgramLength parameter specifies the maximum n-gram length to use for analysis.
+/*
+NewVigenereAnalyzer creates a new VigenereAnalyzer instance.
+
+The maxNgramLength parameter specifies the maximum n-gram length to use for analysis.
+*/
 func NewVigenereAnalyzer(maxNgramLength int) *VigenereAnalyzer {
 	return &VigenereAnalyzer{
 		shiftAnalyzer: NewCaesarAnalyzer(),
@@ -25,9 +31,13 @@ func NewVigenereAnalyzer(maxNgramLength int) *VigenereAnalyzer {
 	}
 }
 
-// AnalyzeBuffer analyzes the given buffer to find the most likely Vigenère cipher key.
-// It returns a slice of VigenereResult sorted by chi-squared score (best match first).
-// The maximum number of results returned is 10.
+/*
+AnalyzeBuffer analyzes the given buffer to find the most likely Vigenère cipher key.
+
+It returns a slice of VigenereResult sorted by chi-squared score (best match first).
+
+The maximum number of results returned is 10.
+*/
 func (analyzer *VigenereAnalyzer) AnalyzeBuffer(buffer []byte) ([]VigenereResult, error) {
 	if len(buffer) == 0 {
 		return nil, fmt.Errorf("buffer cannot be empty")
