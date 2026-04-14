@@ -22,13 +22,17 @@ type VigenereAnalyzer struct {
 /*
 NewVigenereAnalyzer creates a new VigenereAnalyzer instance.
 
-The maxNgramLength parameter specifies the maximum n-gram length to use for analysis.
+The maxNgramLength parameter specifies the maximum n-gram length to use for analysis. It has to be positive.
 */
-func NewVigenereAnalyzer(maxNgramLength int) *VigenereAnalyzer {
+func NewVigenereAnalyzer(maxNgramLength int) (*VigenereAnalyzer, error) {
+	if maxNgramLength <= 0 {
+		return nil, fmt.Errorf("maxNgramLength has to be positive")
+	}
+
 	return &VigenereAnalyzer{
 		shiftAnalyzer: NewCaesarAnalyzer(),
 		nGramTree:     newTree(maxNgramLength),
-	}
+	}, nil
 }
 
 /*

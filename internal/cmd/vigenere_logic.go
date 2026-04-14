@@ -27,6 +27,10 @@ type vigenereFactory struct {
 }
 
 func (vF *vigenereFactory) name() string {
+	if vF.autokey {
+		return "vigenere-autokey"
+	}
+
 	return "vigenere"
 }
 
@@ -154,7 +158,7 @@ func vigenereAnalyzeRunE(args []string) error {
 	var results []analyze.VigenereResult
 	var err error
 
-	analyzer := analyze.NewVigenereAnalyzer(13) // Lucky number
+	analyzer, _ := analyze.NewVigenereAnalyzer(13) // Lucky number
 	if !fileExists(source) {
 		results, err = analyzer.AnalyzeBuffer([]byte(source))
 	} else {
