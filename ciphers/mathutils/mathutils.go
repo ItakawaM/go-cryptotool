@@ -10,7 +10,7 @@ func IsPrime(numberA int) bool {
 		return false
 	}
 
-	for i := 2; i <= int(math.Sqrt(float64(numberA)))+1; i++ {
+	for i := 2; i <= int(math.Sqrt(float64(numberA))); i++ {
 		if numberA%i == 0 {
 			return false
 		}
