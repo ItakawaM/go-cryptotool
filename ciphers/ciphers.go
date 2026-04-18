@@ -48,6 +48,23 @@ func GetShift(char byte) byte {
 }
 
 /*
+BinaryExponentiation performs fast exponentiation of number to the given power.
+*/
+func BinaryExponentiation(number uint64, power uint64) uint64 {
+	result := uint64(1)
+	for power > 0 {
+		if power&1 == 1 {
+			result *= number
+		}
+
+		number *= number
+		power >>= 1
+	}
+
+	return result
+}
+
+/*
 BlockCipher is the interface that all block ciphers must implement.
 
 It provides methods for encryption and decryption of fixed-size blocks.
