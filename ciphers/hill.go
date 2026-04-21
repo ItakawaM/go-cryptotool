@@ -9,15 +9,33 @@ import (
 // inv2mod13 is the modular inverse of 2 modulo 13 (2 * 7 is congruent to 1 mod 13).
 const inv2mod13 = 7
 
+/*
+HillCipher is a Hill cipher implementation that uses matrix multiplication over Z26.
+
+The cipher encrypts blocks of a-zA-Z characters by treating each block as a vector and multiplying
+it by a NxN key matrix. Non-alphabetic characters are preserved and not transformed.
+
+It does not preserve cases.
+
+Leftover a-zA-Z characters that can't create a Nx1 vector are left unencrypted.
+*/
 type HillCipher struct {
 	key        *mathutils.Matrix[int]
 	inverseKey *mathutils.Matrix[int]
 }
 
+/*
+Key returns the cipher's Key Matrix.
+*/
 func (hc *HillCipher) Key() mathutils.Matrix[int] {
 	return *hc.key
 }
 
+/*
+InverseKey returns the inverse matrix to cipher's Key Matrix, such so:
+
+Key x Inverse = Identity Matrix
+*/
 func (hc *HillCipher) InverseKey() mathutils.Matrix[int] {
 	return *hc.inverseKey
 }
@@ -34,6 +52,15 @@ func crtCombine(numberA int, numberB int) int {
 	return (numberA + 2*temp)
 }
 
+/*
+NewHillCipher creates a new Hill cipher with the given key matrix.
+
+The key matrix must be square and invertible modulo 26. The function computes the inverse
+key matrix using the Chinese Remainder Theorem, combining inverses modulo 2 and modulo 13
+to produce the inverse modulo 26.
+
+Returns an error if the key matrix is not square or not invertible.
+*/
 func NewHillCipher(keyMatrix [][]int) (*HillCipher, error) {
 	/*
 		Z26 is isomorphic to Z2 x Z13, so we can just compute
@@ -74,6 +101,11 @@ func NewHillCipher(keyMatrix [][]int) (*HillCipher, error) {
 	}, nil
 }
 
+/*
+IsInPlace returns whether the cipher can perform encryption/decryption in-place.
+
+Hill cipher supports in-place operations.
+*/
 func (hc *HillCipher) IsInPlace() bool {
 	return true
 }
@@ -90,7 +122,6 @@ func applyTransformation(dst []byte, src []byte, matrix *mathutils.Matrix[int]) 
 	vector := make([]int, size)
 	indices := make([]int, size)
 	for index, char := range src {
-		// Skip all non-ASCII a-zA-Z characters
 		if !IsASCIILetter(char) {
 			continue
 		}
@@ -115,10 +146,38 @@ func applyTransformation(dst []byte, src []byte, matrix *mathutils.Matrix[int]) 
 	return nil
 }
 
+/*
+EncryptBlock encrypts src using the Hill cipher and writes the result to dst.
+
+EncryptBlock multiplies the key matrix by blocks of ASCII letters.
+Non-letter characters are passed through unchanged.
+
+EncryptBlock does not preserve cases.
+
+Leftover a-zA-Z characters that can't create a Nx1 vector are left unencrypted.
+
+src and dst can alias, because Hill cipher performs operations in-place.
+
+src and dst must be the same length.
+*/
 func (hc *HillCipher) EncryptBlock(dst []byte, src []byte) error {
 	return applyTransformation(dst, src, hc.key)
 }
 
+/*
+DecryptBlock decrypts src using the Hill cipher and writes the result to dst.
+
+DecryptBlock multiplies the inverse key matrix by blocks of ASCII letters.
+Non-letter characters are passed through unchanged.
+
+DecryptBlock does not preserve cases.
+
+Leftover a-zA-Z characters that can't create a Nx1 vector are left unencrypted.
+
+src and dst can alias, because Hill cipher performs operations in-place.
+
+src and dst must be the same length.
+*/
 func (hc *HillCipher) DecryptBlock(dst []byte, src []byte) error {
 	return applyTransformation(dst, src, hc.inverseKey)
 }
