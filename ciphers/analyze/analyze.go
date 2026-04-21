@@ -81,7 +81,7 @@ func cleanBuffer(buffer []byte) []byte {
 func normalizeBuffer(buffer []byte) []byte {
 	normalized := make([]byte, len(buffer))
 	for index, char := range buffer {
-		normalized[index] = ciphers.GetShift(char)
+		normalized[index] = ciphers.ToASCIILetter(char)
 	}
 
 	return normalized

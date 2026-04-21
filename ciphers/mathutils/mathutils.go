@@ -56,6 +56,15 @@ func Mod(numberA int, modulo int) (int, error) {
 	return result, nil
 }
 
+func Mod26(numberA int) int {
+	result := numberA % 26
+	if result < 0 {
+		result += 26
+	}
+
+	return result
+}
+
 func ModularInverse(numberA int, modulo int) (int, bool, error) {
 	gcd, xCoeff, _ := ExtendedGCD(numberA, modulo)
 	if gcd != 1 {
