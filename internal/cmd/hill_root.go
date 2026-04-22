@@ -1,6 +1,9 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/ItakawaM/arcipher/ciphers"
+	"github.com/spf13/cobra"
+)
 
 func NewHillCommand() *cobra.Command {
 	hillCmd := &cobra.Command{
@@ -23,9 +26,97 @@ the remaining characters that cannot form a complete vector may be left unencryp
 	}
 	hillCmd.AddCommand(
 		newHillGenerateKeyCommand(),
+		newHillEncryptCommand(),
+		newHillDecryptCommand(),
 	)
 
 	return hillCmd
+}
+
+func newHillEncryptCommand() *cobra.Command {
+	params := &hillParams{}
+
+	encryptCmd := &cobra.Command{
+		Use:   "encrypt <key> <message | input> [output]",
+		Short: "Encrypt a message or file using the Hill cipher",
+		Args:  cobra.RangeArgs(2, 3),
+		Long: `Encrypt messages or files using the Hill cipher.
+
+A key must be provided for encryption and should be an invertible NxN
+matrix under modular arithmetic (mod 26). Keys are supplied
+as JSON files (see the key generation command).
+
+The Hill cipher operates on fixed-size blocks of text, transforming
+each block using matrix multiplication.
+
+Examples:
+
+  Encrypt text with key:
+    arcipher hill encrypt ./key.json "HELLOWORLD"
+
+  Encrypt a file with key and 4 threads:
+    arcipher hill encrypt key.json ./example/input ./example/input.enc --threads 4 -v
+
+Notes:
+
+  • The key matrix must be invertible modulo 26
+  • Only ASCII characters a-zA-Z are encrypted
+  • All non-alphabetic characters are left unchanged
+  • Remaining characters that do not fill a complete vector of N may be left unencrypted
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return hillRunE(cmd, args, params, ciphers.Encrypt)
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return hillPreRunE(cmd, args, params)
+		},
+	}
+	params.addFlags(encryptCmd)
+
+	return encryptCmd
+}
+
+func newHillDecryptCommand() *cobra.Command {
+	params := &hillParams{}
+
+	decryptCmd := &cobra.Command{
+		Use:   "decrypt <key> <message | input> [output]",
+		Short: "Decrypt a message or file using the Hill cipher",
+		Args:  cobra.RangeArgs(2, 3),
+		Long: `Decrypt messages or files that were encrypted using the Hill cipher.
+
+A key must be provided for decryption and should match the one used
+during encryption. Keys are supplied as JSON files (see the key
+generation command).
+
+During decryption, the modular inverse of the NxN key
+matrix is used to recover the original plaintext.
+
+Examples:
+
+  Decrypt text with key:
+    arcipher hill decrypt ./key.json "ZICVTWQNGRZGVTWAVZHCQYGLMGJ"
+
+  Decrypt a file with key and 4 threads:
+    arcipher hill decrypt key.json ./example/input.enc ./example/output --threads 4 -v
+
+Notes:
+
+  • The key matrix must be invertible modulo 26
+  • Only ASCII characters a-zA-Z are encrypted
+  • All non-alphabetic characters are left unchanged
+  • Remaining characters that do not fill a complete vector of N may be left unencrypted
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return hillRunE(cmd, args, params, ciphers.Decrypt)
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return hillPreRunE(cmd, args, params)
+		},
+	}
+	params.addFlags(decryptCmd)
+
+	return decryptCmd
 }
 
 func newHillGenerateKeyCommand() *cobra.Command {
