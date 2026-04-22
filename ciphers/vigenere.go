@@ -37,7 +37,7 @@ func NormalizeVigenereKey(key []byte) ([]byte, error) {
 		if !IsASCIILetter(char) {
 			return nil, fmt.Errorf("key can only consist of ASCII letters")
 		}
-		normalizedKey[index] = GetShift(char)
+		normalizedKey[index] = ToASCIILetter(char)
 	}
 
 	return normalizedKey, nil

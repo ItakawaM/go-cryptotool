@@ -1,6 +1,12 @@
 // Package ciphers provides implementations of various classical and modern encryption ciphers.
 package ciphers
 
+import (
+	"crypto/rand"
+	"fmt"
+	"math/big"
+)
+
 /*
 CipherMode represents the mode of operation for a cipher, either encryption or decryption.
 */
@@ -31,11 +37,15 @@ func IsASCIILetter(char byte) bool {
 }
 
 /*
-GetShift normalizes ASCII a-zA-Z letters to 0-25, where A is 0 and Z is 25.
+ToASCIILetter converts an ASCII letter to its position in the alphabet (0-25).
 
-If the provided char is not a-zA-Z, returns the char.
+For lowercase letters (a-z), it returns 0-25.
+For uppercase letters (A-Z), it returns 0-25.
+For non-letter characters, it returns the character unchanged.
+
+Should be used together with IsASCIILetter.
 */
-func GetShift(char byte) byte {
+func ToASCIILetter(char byte) byte {
 	switch {
 	case char >= 'a' && char <= 'z':
 		return char - 'a'
@@ -48,20 +58,33 @@ func GetShift(char byte) byte {
 }
 
 /*
-BinaryExponentiation performs fast exponentiation of number to the given power.
-*/
-func BinaryExponentiation(number uint64, power uint64) uint64 {
-	result := uint64(1)
-	for power > 0 {
-		if power&1 == 1 {
-			result *= number
-		}
+RandSequenceIntMaxN generates a sequence of random integers in the range [0, n).
 
-		number *= number
-		power >>= 1
+It returns a channel that produces count random integers, each in the range [0, n).
+The function uses crypto/rand for cryptographically secure random numbers.
+
+Returns an error if n <= 0 or count <= 0.
+*/
+func RandSequenceIntMaxN(n int, count int) (<-chan int, error) {
+	if n <= 0 {
+		return nil, fmt.Errorf("n has to be positive, got = %d", n)
+	}
+	if count <= 0 {
+		return nil, fmt.Errorf("count has to be positive, got = %d", count)
 	}
 
-	return result
+	limit := big.NewInt(int64(n))
+	result := make(chan int, count)
+	for range count {
+		value, err := rand.Int(rand.Reader, limit)
+		if err != nil {
+			return nil, err
+		}
+		result <- int(value.Int64())
+	}
+
+	close(result)
+	return result, nil
 }
 
 /*
