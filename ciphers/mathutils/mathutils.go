@@ -1,3 +1,4 @@
+// mathutils provides functions and structs to perform mathematical operations.
 package mathutils
 
 import (
@@ -5,6 +6,9 @@ import (
 	"math"
 )
 
+/*
+IsPrime returns true if the given number is prime, false otherwise.
+*/
 func IsPrime(numberA int) bool {
 	if numberA < 2 {
 		return false
@@ -19,6 +23,9 @@ func IsPrime(numberA int) bool {
 	return true
 }
 
+/*
+GCD returns the greatest common divisor of numberA and numberB using the Euclidean algorithm.
+*/
 func GCD(numberA int, numberB int) int {
 	for numberB > 0 {
 		numberA, numberB = numberB, numberA%numberB
@@ -27,6 +34,10 @@ func GCD(numberA int, numberB int) int {
 	return numberA
 }
 
+/*
+ExtendedGCD returns the GCD of numberA and numberB along with the coefficients x and y
+such that numberA*x + numberB*y = GCD.
+*/
 func ExtendedGCD(numberA int, numberB int) (int, int, int) {
 	remainder, nextRemainder := numberA, numberB
 	x, nextX := 1, 0
@@ -43,6 +54,11 @@ func ExtendedGCD(numberA int, numberB int) (int, int, int) {
 	return remainder, x, y
 }
 
+/*
+Mod returns the result of numberA modulo modulo in the range [0, modulo).
+
+Returns an error if modulo is less than or equal to zero.
+*/
 func Mod(numberA int, modulo int) (int, error) {
 	if modulo <= 0 {
 		return 0, fmt.Errorf("modulo must be positive, got %d", modulo)
@@ -56,6 +72,9 @@ func Mod(numberA int, modulo int) (int, error) {
 	return result, nil
 }
 
+/*
+Mod26 returns the result of numberA modulo 26 in the range [0, 26).
+*/
 func Mod26(numberA int) int {
 	result := numberA % 26
 	if result < 0 {
@@ -65,6 +84,11 @@ func Mod26(numberA int) int {
 	return result
 }
 
+/*
+ModularInverse returns the modular inverse of numberA modulo modulo.
+
+Returns (0, false, nil) if the inverse does not exist.
+*/
 func ModularInverse(numberA int, modulo int) (int, bool, error) {
 	gcd, xCoeff, _ := ExtendedGCD(numberA, modulo)
 	if gcd != 1 {
@@ -79,6 +103,11 @@ func ModularInverse(numberA int, modulo int) (int, bool, error) {
 	return inverse, true, nil
 }
 
+/*
+MatrixInverseModuloPrime computes the modular inverse of a matrix over a prime field.
+
+Returns an error if moduloPrime is not prime, the matrix is not square, or the matrix is not invertible.
+*/
 func MatrixInverseModuloPrime(matrix *Matrix[int], moduloPrime int) (*Matrix[int], error) {
 	if moduloPrime <= 0 {
 		return nil, fmt.Errorf("modulo must be positive, got %d", moduloPrime)
@@ -160,7 +189,7 @@ func MatrixInverseModuloPrime(matrix *Matrix[int], moduloPrime int) (*Matrix[int
 }
 
 /*
-BinaryExponentiation performs fast exponentiation of number to the given power.
+BinaryExponentiation computes number raised to the given power using fast exponentiation.
 */
 func BinaryExponentiation(number uint64, power uint64) uint64 {
 	result := uint64(1)
