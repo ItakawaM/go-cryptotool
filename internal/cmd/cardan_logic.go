@@ -204,6 +204,10 @@ func cardanGenerateKeyPreRunE(args []string, params *cardanParams) error {
 }
 
 func cardanGenerateKeyRunE(command *cobra.Command, args []string, params *cardanParams) error {
+	if isVerbose {
+		defer benchmark.MeasurePerformance("cardan generate-key")()
+	}
+
 	key, err := ciphers.GenerateCardanKey(params.blockSize)
 	if err != nil {
 		return err

@@ -31,5 +31,6 @@ func init() {
 		NewCaesarCommand(),
 		NewCardanCommand(),
 		NewVigenereCommand(),
+		NewHillCommand(),
 	)
 }
