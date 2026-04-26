@@ -23,20 +23,6 @@ type cardanParams struct {
 	blockCipherParams
 }
 
-func loadCardanKey(path string) (*ciphers.CardanKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var key ciphers.CardanKey
-	if err := json.Unmarshal(data, &key); err != nil {
-		return nil, err
-	}
-
-	return &key, nil
-}
-
 func calculateGridSize(gridKeyLen int) (int, error) {
 	for _, candidate := range []int{
 		int(math.Round(math.Sqrt(float64(4 * gridKeyLen)))),
@@ -66,7 +52,7 @@ func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) 
 		}
 		params.blockSize = int(math.Ceil(math.Sqrt(float64(len(args[1])))))
 
-		key, err := loadCardanKey(args[0])
+		key, err := loadJsonKey[ciphers.CardanKey](args[0])
 		if err != nil {
 			return err
 		}
@@ -86,7 +72,7 @@ func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) 
 			return fmt.Errorf("provided input file does not exist: %s", args[1])
 		}
 
-		key, err := loadCardanKey(args[0])
+		key, err := loadJsonKey[ciphers.CardanKey](args[0])
 		if err != nil {
 			return err
 		}

@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
 
+	"github.com/ItakawaM/arcipher/ciphers"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +16,20 @@ type blockCipherParams struct {
 }
 
 var isVerbose bool
+
+func loadJsonKey[T ciphers.CardanKey | ciphers.AffineKey](path string) (*T, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var key T
+	if err := json.Unmarshal(data, &key); err != nil {
+		return nil, err
+	}
+
+	return &key, nil
+}
 
 func fileExists(filepath string) bool {
 	if _, err := os.Stat(filepath); err == nil {
