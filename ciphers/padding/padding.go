@@ -1,31 +1,55 @@
 package padding
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 )
 
-func Pad(data []byte, blockSize int) []byte {
+/*
+ISOIEC7816Pad adds ISO/IEC 7816-4:2005 padding to the provided block.
+
+https://en.wikipedia.org/wiki/Padding_(cryptography)#ISO/IEC_7816-4
+*/
+func ISOIEC7816Pad(data []byte, blockSize int) ([]byte, error) {
+	if blockSize <= 0 {
+		return nil, fmt.Errorf("blockSize must be > 0, got %d", blockSize)
+	}
+
 	paddingLen := blockSize - (len(data) % blockSize)
-	pad := bytes.Repeat([]byte{byte(0x20)}, paddingLen-4)
 
-	padBlock := make([]byte, 4)
-	binary.BigEndian.PutUint32(padBlock, uint32(paddingLen))
+	result := make([]byte, len(data)+paddingLen)
+	copy(result, data)
+	result[len(data)] = 0x80
 
-	data = append(data, pad...)
-	return append(data, padBlock...)
+	return result, nil
 }
 
-func Unpad(data []byte, blockSize int) ([]byte, error) {
-	if len(data) == 0 || len(data)%blockSize != 0 {
-		return nil, fmt.Errorf("invalid padded data")
+/*
+ISOIEC7816Unpad removes ISO/IEC 7816-4:2005 padding from the provided block.
+
+https://en.wikipedia.org/wiki/Padding_(cryptography)#ISO/IEC_7816-4
+*/
+func ISOIEC7816Unpad(data []byte, blockSize int) ([]byte, error) {
+	if blockSize <= 0 {
+		return nil, fmt.Errorf("blockSize must be > 0, got %d", blockSize)
 	}
 
-	paddingLen := binary.BigEndian.Uint32(data[len(data)-4:])
-	if paddingLen == 0 || paddingLen > uint32(blockSize) {
-		return nil, fmt.Errorf("invalid padded data")
+	if len(data) == 0 {
+		return nil, fmt.Errorf("data is empty")
 	}
 
-	return data[:len(data)-int(paddingLen)], nil
+	if len(data)%blockSize != 0 {
+		return nil, fmt.Errorf("data length %d is not a multiple of blockSize %d", len(data), blockSize)
+	}
+
+	for i := len(data) - 1; i >= len(data)-blockSize; i-- {
+		if data[i] == 0x80 {
+			return data[:i], nil
+		}
+
+		if data[i] != 0x00 {
+			break
+		}
+	}
+
+	return nil, fmt.Errorf("invalid padding: no 0x80 marker found in block")
 }

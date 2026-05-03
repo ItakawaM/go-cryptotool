@@ -103,7 +103,10 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, mod
 		if _, err := inFile.ReadAt(src[:remainder], fullBlocks*int64(blockEngine.blockSize)); err != nil {
 			return err
 		}
-		src = padding.Pad(src[:remainder], int(blockEngine.blockSize))
+		src, err = padding.ISOIEC7816Pad(src[:remainder], int(blockEngine.blockSize))
+		if err != nil {
+			return err
+		}
 
 		if err := blockCipher.EncryptBlock(dst, src); err != nil {
 			return err
@@ -120,7 +123,7 @@ func (blockEngine *BlockEngine) ProcessFile(blockCipher ciphers.BlockCipher, mod
 		}
 
 		// Verify pad
-		src, err = padding.Unpad(src, int(blockEngine.blockSize))
+		src, err = padding.ISOIEC7816Unpad(src, int(blockEngine.blockSize))
 		if err != nil {
 			return err
 		}
