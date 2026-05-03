@@ -18,7 +18,25 @@ Example:
 	Ciphertext: JeenoPqref
 */
 type VigenereCipher struct {
-	Key []byte
+	key []byte
+}
+
+/*
+VigenereKey represents a Vigenere/Vigenere Auto-Key cipher key.
+
+It consists of a word/key/phrase/sequence of ASCII a-zA-Z letters.
+*/
+type VigenereKey struct {
+	Key []byte `json:"key"`
+}
+
+/*
+Key returns the underlying key.
+*/
+func (vc *VigenereCipher) Key() VigenereKey {
+	return VigenereKey{
+		Key: vc.key,
+	}
 }
 
 /*
@@ -27,13 +45,13 @@ and returning only the shift values (a=0, b=1, ..., z=25).
 
 Returns an error if the key is empty or contains non-letter characters.
 */
-func NormalizeVigenereKey(key []byte) ([]byte, error) {
-	if len(key) == 0 {
+func NormalizeVigenereKey(key *VigenereKey) ([]byte, error) {
+	if len(key.Key) == 0 {
 		return nil, fmt.Errorf("key cannot be empty")
 	}
 
-	normalizedKey := make([]byte, len(key))
-	for index, char := range key {
+	normalizedKey := make([]byte, len(key.Key))
+	for index, char := range key.Key {
 		if !IsASCIILetter(char) {
 			return nil, fmt.Errorf("key can only consist of ASCII letters")
 		}
@@ -50,22 +68,24 @@ The key must be a non-empty string of ASCII letters.
 
 Returns an error if the key is invalid.
 */
-func NewVigenereCipher(key []byte) (*VigenereCipher, error) {
+func NewVigenereCipher(key *VigenereKey) (*VigenereCipher, error) {
 	normalizedKey, err := NormalizeVigenereKey(key)
 	if err != nil {
 		return nil, err
 	}
 
 	return &VigenereCipher{
-		Key: normalizedKey,
+		key: normalizedKey,
 	}, nil
 }
 
 /*
 NewVigenereCipherNormalized creates a new Vigenere cipher with an already normalized key.
 */
-func NewVigenereCipherNormalized(normalizedKey []byte) *VigenereCipher {
-	return &VigenereCipher{Key: normalizedKey}
+func NewVigenereCipherNormalized(key []byte) *VigenereCipher {
+	return &VigenereCipher{
+		key: key,
+	}
 }
 
 /*
@@ -73,7 +93,7 @@ IsInPlace returns whether the cipher can perform encryption/decryption in-place.
 
 Vigenere cipher supports in-place operations.
 */
-func (vCipher *VigenereCipher) IsInPlace() bool {
+func (vc *VigenereCipher) IsInPlace() bool {
 	return true
 }
 
@@ -86,31 +106,29 @@ src and dst can alias, because Vigenere cipher performs operations in-place.
 
 src and dst must be the same length.
 */
-func (vCipher *VigenereCipher) EncryptBlock(dst []byte, src []byte) error {
+func (vc *VigenereCipher) EncryptBlock(dst []byte, src []byte) error {
 	if len(dst) != len(src) {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
 	}
 
 	keyIndex := 0
-	keyCycle := len(vCipher.Key)
+	keyCycle := len(vc.key)
 	for index, char := range src {
+		base := byte(0)
 		switch {
 		case char >= 'a' && char <= 'z':
-			dst[index] = (char-'a'+(vCipher.Key[keyIndex]))%26 + 'a'
-			keyIndex += 1
-			if keyIndex == keyCycle {
-				keyIndex = 0
-			}
-
+			base = 'a'
 		case char >= 'A' && char <= 'Z':
-			dst[index] = (char-'A'+(vCipher.Key[keyIndex]))%26 + 'A'
-			keyIndex += 1
-			if keyIndex == keyCycle {
-				keyIndex = 0
-			}
-
+			base = 'A'
 		default:
 			dst[index] = char
+			continue
+		}
+
+		dst[index] = shiftChar(char, base, vc.key[keyIndex])
+		keyIndex++
+		if keyIndex == keyCycle {
+			keyIndex = 0
 		}
 	}
 
@@ -126,31 +144,29 @@ src and dst can alias, because Vigenere cipher performs operations in-place.
 
 src and dst must be the same length.
 */
-func (vCipher *VigenereCipher) DecryptBlock(dst []byte, src []byte) error {
+func (vc *VigenereCipher) DecryptBlock(dst []byte, src []byte) error {
 	if len(dst) != len(src) {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
 	}
 
 	keyIndex := 0
-	keyCycle := len(vCipher.Key)
+	keyCycle := len(vc.key)
 	for index, char := range src {
+		base := byte(0)
 		switch {
 		case char >= 'a' && char <= 'z':
-			dst[index] = (char-'a'-(vCipher.Key[keyIndex])+26)%26 + 'a'
-			keyIndex += 1
-			if keyIndex == keyCycle {
-				keyIndex = 0
-			}
-
+			base = 'a'
 		case char >= 'A' && char <= 'Z':
-			dst[index] = (char-'A'-(vCipher.Key[keyIndex])+26)%26 + 'A'
-			keyIndex += 1
-			if keyIndex == keyCycle {
-				keyIndex = 0
-			}
-
+			base = 'A'
 		default:
 			dst[index] = char
+			continue
+		}
+
+		dst[index] = unshiftChar(char, base, vc.key[keyIndex])
+		keyIndex++
+		if keyIndex == keyCycle {
+			keyIndex = 0
 		}
 	}
 

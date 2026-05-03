@@ -48,7 +48,7 @@ Examples:
 
 Notes:
 
-  • The shift can be any non-negative integer (negative values are not allowed)
+  • The shift can be any integer 
   • The effective shift is calculated modulo 26[a-zA-Z]
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,7 +87,7 @@ Examples:
 
 Notes:
 
-  • The shift can be any non-negative integer (negative values are not allowed)
+  • The shift can be any integer
   • The effective shift is calculated modulo 26[a-zA-Z]
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {

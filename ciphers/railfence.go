@@ -10,7 +10,7 @@ The key specifies the number of rails to use.
 
 Example:
 
-	Key:        3
+	key:        3
 	Plaintext:  HelloWorld
 	----------------------
 	  l   o
@@ -20,84 +20,106 @@ Example:
 	Ciphertext: loelwrdHol
 */
 type RailFenceCipher struct {
-	Key              int
-	PermutationTable []int
+	key              int
+	permutationTable []int
 }
 
 /*
-NewRailFenceCipher creates a new Rail Fence cipher with the given key and block size.
+RailFenceKey represents a key for a RailFence cipher.
 
-The key is the number of rails (must be >= 1).
-
-If key is 0, PermutationTable becomes nil. EncryptBlock() and DecryptBlock() handle the key == 1 case separately.
-
-The block size is the size of plaintext blocks (must be > 0).
-
-Returns an error if the key is < 1 or block size is <= 0.
+It contains the height of the fence (Key)
+and the length of the permutation block (PermutationLength).
 */
-func NewRailFenceCipher(key int, blockSize int) (*RailFenceCipher, error) {
-	if blockSize <= 0 {
-		return nil, fmt.Errorf("incorrect blockSize provided: %d", blockSize)
+type RailFenceKey struct {
+	Key               int `json:"keyy"`
+	PermutationLength int `json:"permutation_length"`
+}
+
+/*
+Key returns the underlying key and the length of the permutation block.
+*/
+func (rfc *RailFenceCipher) Key() RailFenceKey {
+	return RailFenceKey{
+		Key:               rfc.key,
+		PermutationLength: len(rfc.permutationTable),
+	}
+}
+
+/*
+NewRailFenceCipher creates a new Rail Fence cipher with the given key.
+
+The key consists of the height of the rails (must be >= 1) and the length of the block (must be >= 1).
+
+If height is 1, permutationTable becomes nil. EncryptBlock() and DecryptBlock() handle the height == 1 case separately.
+
+If height is >= permutationLength, permutationTable reverses the text.
+
+Returns an error if the key is < 1 or length of the block is <= 0.
+*/
+func NewRailFenceCipher(key *RailFenceKey) (*RailFenceCipher, error) {
+	height := key.Key
+	permutationLength := key.PermutationLength
+
+	if permutationLength <= 0 {
+		return nil, fmt.Errorf("incorrect permutationLength provided: %d", permutationLength)
 	}
 
-	permutationTable := make([]int, blockSize)
-
-	if key < 1 {
+	permutationTable := make([]int, permutationLength)
+	if height < 1 {
 		return nil, fmt.Errorf("incorrect key provided: %d", key)
-		// Reverse order when Key >= BlockSize
-	} else if key == 1 {
-		// Encrypt() Decrypt() handle the key == 1 option
+	} else if height == 1 {
+		// Encrypt() Decrypt() handle the height == 1 option
 		return &RailFenceCipher{
-			Key:              key,
-			PermutationTable: nil,
+			key:              height,
+			permutationTable: nil,
 		}, nil
-	} else if key >= blockSize {
-		for index := range blockSize {
-			permutationTable[index] = blockSize - 1 - index
+		// Reverse order when height >= permutationLength
+	} else if height >= permutationLength {
+		for index := range permutationLength {
+			permutationTable[index] = permutationLength - 1 - index
 		}
 
 		return &RailFenceCipher{
-			Key:              key,
-			PermutationTable: permutationTable,
+			key:              height,
+			permutationTable: permutationTable,
 		}, nil
 	}
 
-	cycle := 2 * (key - 1)
-
-	rails := make([]int, blockSize)
-	for index := range blockSize {
+	cycle := 2 * (height - 1)
+	rails := make([]int, permutationLength)
+	for index := range permutationLength {
 		cyclePosition := index % cycle
-		if cyclePosition < key {
+		if cyclePosition < height {
 			rails[index] = cyclePosition
 		} else {
 			rails[index] = cycle - cyclePosition
 		}
 	}
 
-	railOffset := make([]int, key)
+	railOffset := make([]int, height)
 	currentOffset := 0
-	for rail := key - 1; rail >= 0; rail-- {
+	for rail := height - 1; rail >= 0; rail-- {
 		railOffset[rail] = currentOffset
 
-		for index := rail; index < blockSize; index += cycle {
+		for index := rail; index < permutationLength; index += cycle {
 			currentOffset += 1
 
-			if rail != 0 && rail != key-1 {
-				if secondIndex := index + cycle - 2*rail; secondIndex < blockSize {
+			if rail != 0 && rail != height-1 {
+				if secondIndex := index + cycle - 2*rail; secondIndex < permutationLength {
 					currentOffset += 1
 				}
 			}
 		}
 	}
 
-	for index := range blockSize {
+	for index := range permutationLength {
 		permutationTable[index] = railOffset[rails[index]]
 		railOffset[rails[index]]++
 	}
 
 	return &RailFenceCipher{
-		Key:              key,
-		PermutationTable: permutationTable,
+		key:              height,
+		permutationTable: permutationTable,
 	}, nil
 }
 
@@ -107,7 +129,7 @@ IsInPlace returns whether the cipher can perform encryption/decryption in-place.
 Rail Fence cipher does not support in-place operations since bytes are written
 to non-sequential positions, requiring a separate destination buffer.
 */
-func (rfCipher *RailFenceCipher) IsInPlace() bool {
+func (rfc *RailFenceCipher) IsInPlace() bool {
 	return false
 }
 
@@ -116,21 +138,25 @@ EncryptBlock encrypts src using the Rail Fence cipher and writes the result to d
 
 src and dst cannot alias.
 
-src and dst must be the same length and must match the blockSize used when creating the cipher.
+src and dst must be the same length and must match the permutationLength used when creating the cipher.
 */
-func (rfCipher *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
-	blockSize := len(rfCipher.PermutationTable)
-	if (len(src) != blockSize || len(dst) != blockSize) && rfCipher.PermutationTable != nil {
-		return fmt.Errorf("block size mismatch: expected %d, got src=%d dst=%d", blockSize, len(src), len(dst))
+func (rfc *RailFenceCipher) EncryptBlock(dst []byte, src []byte) error {
+	if len(src) != len(dst) {
+		return fmt.Errorf("block size mismatch: src = %d dst = %d", len(src), len(dst))
 	}
 
-	if rfCipher.Key == 1 {
+	if rfc.key == 1 {
 		copy(dst, src)
 		return nil
 	}
 
+	blockSize := len(rfc.permutationTable)
+	if len(src) != blockSize {
+		return fmt.Errorf("block size mismatch: expected %d, got %d", blockSize, len(src))
+	}
+
 	for index := range src {
-		dst[rfCipher.PermutationTable[index]] = src[index]
+		dst[rfc.permutationTable[index]] = src[index]
 	}
 
 	return nil
@@ -141,21 +167,24 @@ DecryptBlock decrypts src using the Rail Fence cipher and writes the result to d
 
 src and dst cannot alias.
 
-src and dst must be the same length and must match the blockSize used when creating the cipher.
+src and dst must be the same length and must match the permutationLength used when creating the cipher.
 */
-func (rfCipher *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
-	blockSize := len(rfCipher.PermutationTable)
-	if (len(src) != blockSize || len(dst) != blockSize) && rfCipher.PermutationTable != nil {
-		return fmt.Errorf("block size mismatch: expected %d, got src=%d dst=%d", blockSize, len(src), len(dst))
+func (rfc *RailFenceCipher) DecryptBlock(dst []byte, src []byte) error {
+	if len(src) != len(dst) {
+		return fmt.Errorf("block size mismatch: src = %d dst = %d", len(src), len(dst))
 	}
 
-	if rfCipher.Key == 1 {
+	if rfc.key == 1 {
 		copy(dst, src)
 		return nil
 	}
 
+	blockSize := len(rfc.permutationTable)
+	if len(src) != blockSize {
+		return fmt.Errorf("block size mismatch: expected %d, got %d", blockSize, len(src))
+	}
 	for index := range src {
-		dst[index] = src[rfCipher.PermutationTable[index]]
+		dst[index] = src[rfc.permutationTable[index]]
 	}
 
 	return nil

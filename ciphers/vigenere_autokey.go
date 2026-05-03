@@ -9,7 +9,7 @@ stronger security than the standard Vigenere cipher.
 
 Example:
 
-	Key:        Cat
+	key:        Cat
 	Plaintext:  HelloWorld
 	---------------------
 	+H e l l o W o r l d
@@ -23,40 +23,55 @@ type VigenereAutoKeyCipher struct {
 }
 
 /*
-NewVigenereAutoKeyCipher creates a new Vigenere Auto-Key cipher with the given key.
+NewVigenereAutoKeyCipher creates a new Vigenere Auto-key cipher with the given key.
 
 The key must be a non-empty string of ASCII letters.
 
 Returns an error if the key is invalid.
 */
-func NewVigenereAutoKeyCipher(key []byte) (*VigenereAutoKeyCipher, error) {
+func NewVigenereAutoKeyCipher(key *VigenereKey) (*VigenereAutoKeyCipher, error) {
 	normalizedKey, err := NormalizeVigenereKey(key)
 	if err != nil {
 		return nil, err
 	}
 
-	return &VigenereAutoKeyCipher{VigenereCipher{Key: normalizedKey}}, nil
+	return &VigenereAutoKeyCipher{
+		VigenereCipher{
+			key: normalizedKey,
+		},
+	}, nil
 }
 
 /*
-NewVigenereAutoKeyCipherNormalized creates a new Vigenere Auto-Key cipher with an already normalized key.
+NewVigenereAutoKeyCipherNormalized creates a new Vigenere Auto-key cipher with an already normalized key.
 */
-func NewVigenereAutoKeyCipherNormalized(normalizedKey []byte) *VigenereAutoKeyCipher {
-	return &VigenereAutoKeyCipher{VigenereCipher{Key: normalizedKey}}
+func NewVigenereAutoKeyCipherNormalized(key []byte) *VigenereAutoKeyCipher {
+	return &VigenereAutoKeyCipher{
+		VigenereCipher{
+			key: key,
+		}}
 }
 
 /*
 IsInPlace returns whether the cipher can perform encryption/decryption in-place.
 
-Vigenere Auto-Key cipher does not support in-place operations since
+Vigenere Auto-key cipher does not support in-place operations since
 decryption reads from dst as key material before it is fully written.
 */
 func (vCipher *VigenereAutoKeyCipher) IsInPlace() bool {
 	return false
 }
 
+func shiftChar(char, base, shift byte) byte {
+	return (char-base+shift)%26 + base
+}
+
+func unshiftChar(char, base, shift byte) byte {
+	return (char-base-shift+26)%26 + base
+}
+
 /*
-EncryptBlock encrypts src using the Vigenere Auto-Key cipher and writes the result to dst.
+EncryptBlock encrypts src using the Vigenere Auto-key cipher and writes the result to dst.
 
 The key cycles over letter characters only; non-letter characters are passed through unchanged.
 
@@ -70,44 +85,43 @@ func (vCipher *VigenereAutoKeyCipher) EncryptBlock(dst []byte, src []byte) error
 	}
 
 	keyIndex := 0
-	keyCycle := len(vCipher.Key)
+	keyCycle := len(vCipher.key)
 	letterIndex := 0
 	for index, char := range src {
+		base := byte(0)
 		switch {
 		case char >= 'a' && char <= 'z':
-			if keyIndex < keyCycle {
-				dst[index] = (char-'a'+(vCipher.Key[keyIndex]))%26 + 'a'
-			} else {
-				for !IsASCIILetter(src[letterIndex]) {
-					letterIndex += 1
-				}
-				dst[index] = (char-'a'+ToASCIILetter(src[letterIndex]))%26 + 'a'
-				letterIndex += 1
-			}
-			keyIndex += 1
-
+			base = 'a'
 		case char >= 'A' && char <= 'Z':
-			if keyIndex < keyCycle {
-				dst[index] = (char-'A'+(vCipher.Key[keyIndex]))%26 + 'A'
-			} else {
-				for !IsASCIILetter(src[letterIndex]) {
-					letterIndex += 1
-				}
-				dst[index] = (char-'A'+ToASCIILetter(src[letterIndex]))%26 + 'A'
-				letterIndex += 1
-			}
-			keyIndex += 1
-
+			base = 'A'
 		default:
 			dst[index] = char
+			continue
 		}
+
+		var shift byte
+		if keyIndex < keyCycle {
+			shift = vCipher.key[keyIndex]
+		} else {
+			for letterIndex < len(src) && !IsASCIILetter(src[letterIndex]) {
+				letterIndex++
+			}
+			if letterIndex >= len(src) {
+				return fmt.Errorf("ran out of plaintext key material at index %d", index)
+			}
+			shift = ToASCIILetter(src[letterIndex])
+			letterIndex++
+		}
+
+		dst[index] = shiftChar(char, base, shift)
+		keyIndex++
 	}
 
 	return nil
 }
 
 /*
-DecryptBlock decrypts src using the Vigenere Auto-Key cipher and writes the result to dst.
+DecryptBlock decrypts src using the Vigenere Auto-key cipher and writes the result to dst.
 
 The key cycles over letter characters only; non-letter characters are passed through unchanged.
 
@@ -121,37 +135,36 @@ func (vCipher *VigenereAutoKeyCipher) DecryptBlock(dst []byte, src []byte) error
 	}
 
 	keyIndex := 0
-	keyCycle := len(vCipher.Key)
+	keyCycle := len(vCipher.key)
 	letterIndex := 0
 	for index, char := range src {
+		base := byte(0)
 		switch {
 		case char >= 'a' && char <= 'z':
-			if keyIndex < keyCycle {
-				dst[index] = (char-'a'-(vCipher.Key[keyIndex])+26)%26 + 'a'
-			} else {
-				for !IsASCIILetter(src[letterIndex]) {
-					letterIndex += 1
-				}
-				dst[index] = (char-'a'-ToASCIILetter(dst[letterIndex])+26)%26 + 'a'
-				letterIndex += 1
-			}
-			keyIndex += 1
-
+			base = 'a'
 		case char >= 'A' && char <= 'Z':
-			if keyIndex < keyCycle {
-				dst[index] = (char-'A'-(vCipher.Key[keyIndex])+26)%26 + 'A'
-			} else {
-				for !IsASCIILetter(src[letterIndex]) {
-					letterIndex += 1
-				}
-				dst[index] = (char-'A'-ToASCIILetter(dst[letterIndex])+26)%26 + 'A'
-				letterIndex += 1
-			}
-			keyIndex += 1
-
+			base = 'A'
 		default:
 			dst[index] = char
+			continue
 		}
+
+		var shift byte
+		if keyIndex < keyCycle {
+			shift = vCipher.key[keyIndex]
+		} else {
+			for letterIndex < len(dst) && !IsASCIILetter(dst[letterIndex]) {
+				letterIndex++
+			}
+			if letterIndex >= len(dst) {
+				return fmt.Errorf("ran out of plaintext key material at index %d", index)
+			}
+			shift = ToASCIILetter(dst[letterIndex])
+			letterIndex++
+		}
+
+		dst[index] = unshiftChar(char, base, shift)
+		keyIndex++
 	}
 
 	return nil

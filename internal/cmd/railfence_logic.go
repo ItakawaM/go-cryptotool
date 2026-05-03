@@ -11,22 +11,25 @@ type railFenceFactory struct {
 	key int
 }
 
-func (rF *railFenceFactory) name() string {
+func (rff *railFenceFactory) name() string {
 	return "railfence"
 }
 
-func (rF *railFenceFactory) parseKey(keyStr string) error {
+func (rff *railFenceFactory) parseKey(keyStr string) error {
 	key, err := strconv.Atoi(keyStr)
 	if err != nil {
 		return err
 	} else if key < 1 {
 		return fmt.Errorf("key must be >= 1")
 	}
-	rF.key = key
+	rff.key = key
 
 	return nil
 }
 
-func (rF *railFenceFactory) newCipher(blockSize int) (ciphers.BlockCipher, error) {
-	return ciphers.NewRailFenceCipher(rF.key, blockSize)
+func (rff *railFenceFactory) newCipher(blockSize int) (ciphers.BlockCipher, error) {
+	return ciphers.NewRailFenceCipher(&ciphers.RailFenceKey{
+		Key:               rff.key,
+		PermutationLength: blockSize,
+	})
 }

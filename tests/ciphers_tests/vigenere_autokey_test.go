@@ -76,7 +76,9 @@ func TestVigenereAutoKeyCipher_EncryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewVigenereAutoKeyCipher(tt.key)
+			cipher, err := ciphers.NewVigenereAutoKeyCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -169,7 +171,9 @@ func TestVigenereAutoKeyCipher_DecryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewVigenereAutoKeyCipher(tt.key)
+			cipher, err := ciphers.NewVigenereAutoKeyCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -238,7 +242,9 @@ func TestVigenereAutoKeyCipher_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, _ := ciphers.NewVigenereAutoKeyCipher(tt.key)
+			cipher, _ := ciphers.NewVigenereAutoKeyCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			src := []byte(tt.message)
 			dst := make([]byte, len(src))
 

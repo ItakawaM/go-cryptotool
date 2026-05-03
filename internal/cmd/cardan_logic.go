@@ -23,19 +23,6 @@ type cardanParams struct {
 	blockCipherParams
 }
 
-func calculateGridSize(gridKeyLen int) (int, error) {
-	for _, candidate := range []int{
-		int(math.Round(math.Sqrt(float64(4 * gridKeyLen)))),
-		int(math.Round(math.Sqrt(float64(4*gridKeyLen + 1)))),
-	} {
-		if candidate > 0 && (candidate*candidate-candidate%2)/4 == gridKeyLen {
-			return candidate, nil
-		}
-	}
-
-	return 0, fmt.Errorf("key length %d does not correspond to any valid grid size", gridKeyLen)
-}
-
 func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) error {
 	switch len(args) {
 	case 1:
@@ -76,7 +63,7 @@ func cardanPreRunE(command *cobra.Command, args []string, params *cardanParams) 
 		if err != nil {
 			return err
 		}
-		gridSize, err := calculateGridSize(len(key.Key))
+		gridSize, err := ciphers.CalculateGridSize(len(key.Key))
 		if err != nil {
 			return err
 		}
@@ -123,7 +110,7 @@ func cardanRunE(command *cobra.Command, args []string, params *cardanParams, mod
 		return cardanRunEMessage(command, args, params, mode)
 
 	case 3:
-		cardanCipher, cardanErr := ciphers.NewCardanCipher(params.gridKey, params.blockSize)
+		cardanCipher, cardanErr := ciphers.NewCardanCipher(params.gridKey)
 		if cardanErr != nil {
 			return cardanErr
 		}
@@ -138,7 +125,7 @@ func cardanRunE(command *cobra.Command, args []string, params *cardanParams, mod
 }
 
 func cardanRunEMessage(command *cobra.Command, args []string, params *cardanParams, mode ciphers.CipherMode) error {
-	cardanCipher, cardanErr := ciphers.NewCardanCipher(params.gridKey, params.blockSize)
+	cardanCipher, cardanErr := ciphers.NewCardanCipher(params.gridKey)
 	if cardanErr != nil {
 		return cardanErr
 	}

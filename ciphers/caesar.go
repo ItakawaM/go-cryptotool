@@ -2,6 +2,8 @@ package ciphers
 
 import (
 	"fmt"
+
+	"github.com/ItakawaM/arcipher/ciphers/mathutils"
 )
 
 /*
@@ -21,23 +23,37 @@ Example:
 	Ciphertext: Khoor
 */
 type CaesarCipher struct {
-	Key               byte
-	SubstitutionTable [256]byte
-	ReverseTable      [256]byte
+	key               byte
+	substitutionTable [256]byte
+	reverseTable      [256]byte
+}
+
+/*
+CarsarKey represents a key for Caesar cipher.
+
+It consists of a byte shift.
+*/
+type CaesarKey struct {
+	Key int `json:"key"`
+}
+
+/*
+Key returns the underlying key.
+*/
+func (cc *CaesarCipher) Key() CaesarKey {
+	return CaesarKey{
+		Key: int(cc.key),
+	}
 }
 
 /*
 NewCaesarCipher creates a new Caesar cipher with the given key.
 
 The key is the number of positions to shift letters (keys are reduced modulo 26).
-
-Returns an error if the key is negative.
+It supports negative keys.
 */
-func NewCaesarCipher(key int) (*CaesarCipher, error) {
-	if key < 0 {
-		return nil, fmt.Errorf("incorrect key provided: %d", key)
-	}
-	parsedKey := byte(key % 26)
+func NewCaesarCipher(key *CaesarKey) *CaesarCipher {
+	parsedKey := byte(mathutils.Mod26(key.Key))
 
 	var substitutionTable [256]byte
 	var reverseTable [256]byte
@@ -62,10 +78,10 @@ func NewCaesarCipher(key int) (*CaesarCipher, error) {
 	}
 
 	return &CaesarCipher{
-		Key:               parsedKey,
-		SubstitutionTable: substitutionTable,
-		ReverseTable:      reverseTable,
-	}, nil
+		key:               parsedKey,
+		substitutionTable: substitutionTable,
+		reverseTable:      reverseTable,
+	}
 }
 
 /*
@@ -89,13 +105,13 @@ func (cc *CaesarCipher) EncryptBlock(dst []byte, src []byte) error {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
 	}
 
-	if cc.Key == 0 {
+	if cc.key == 0 {
 		copy(dst, src)
 		return nil
 	}
 
 	for index, char := range src {
-		dst[index] = cc.SubstitutionTable[char]
+		dst[index] = cc.substitutionTable[char]
 	}
 
 	return nil
@@ -113,13 +129,13 @@ func (cc *CaesarCipher) DecryptBlock(dst []byte, src []byte) error {
 		return fmt.Errorf("block size mismatch src=%d dst=%d", len(src), len(dst))
 	}
 
-	if cc.Key == 0 {
+	if cc.key == 0 {
 		copy(dst, src)
 		return nil
 	}
 
 	for index, char := range src {
-		dst[index] = cc.ReverseTable[char]
+		dst[index] = cc.reverseTable[char]
 	}
 
 	return nil

@@ -47,11 +47,12 @@ func (analyzer *CaesarAnalyzer) AnalyzeBuffer(buffer []byte) ([]CaesarResult, er
 	for i, candidate := range frequencies {
 		key := (candidate.letter - englishMax + 26) % 26
 
-		caesarCipher, err := ciphers.NewCaesarCipher(int(key))
-		if err != nil {
+		caesarCipher := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+			Key: int(key),
+		})
+		if err := caesarCipher.DecryptBlock(dst, buffer); err != nil {
 			return nil, err
 		}
-		caesarCipher.DecryptBlock(dst, buffer)
 
 		newFrequencies := calculateLetterFrequencies(dst, true)
 		decryptedScore := analyzer.model.calculateChiSquared(newFrequencies)

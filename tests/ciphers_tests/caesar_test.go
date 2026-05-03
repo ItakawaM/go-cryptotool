@@ -7,177 +7,6 @@ import (
 	"github.com/ItakawaM/arcipher/ciphers"
 )
 
-func TestNewCaesarCipher(t *testing.T) {
-	keyTests := []struct {
-		name    string
-		key     int
-		wantErr bool
-	}{
-		{
-			name:    "valid key",
-			key:     15,
-			wantErr: false,
-		},
-		{
-			name:    "invalid key",
-			key:     -3,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range keyTests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, gotErr := ciphers.NewCaesarCipher(tt.key)
-			if gotErr != nil {
-				if !tt.wantErr {
-					t.Errorf("NewCaesarCipher() failed: %v", gotErr)
-				}
-				return
-			}
-
-			if tt.wantErr {
-				t.Fatal("NewCaesarCipher() succeeded unexpectedly")
-			}
-		})
-	}
-
-	substitutionTests := []struct {
-		name   string
-		key    int
-		source byte
-		want   byte
-	}{
-		{
-			name:   "substitution normal 1",
-			key:    3,
-			source: 'a',
-			want:   'd',
-		},
-		{
-			name:   "substitution normal 2",
-			key:    1234,
-			source: 'a',
-			want:   'm',
-		},
-		{
-			name:   "substitution case",
-			key:    3,
-			source: 'B',
-			want:   'E',
-		},
-		{
-			name:   "substitution no change 1",
-			key:    0,
-			source: 'e',
-			want:   'e',
-		},
-		{
-			name:   "substitution no change 2",
-			key:    26,
-			source: 'e',
-			want:   'e',
-		},
-		{
-			name:   "substitution non-alpha 1",
-			key:    23,
-			source: ':',
-			want:   ':',
-		},
-		{
-			name:   "substitution non-alpha 2",
-			key:    23,
-			source: '.',
-			want:   '.',
-		},
-	}
-
-	for _, tt := range substitutionTests {
-		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewCaesarCipher(tt.key)
-			if err != nil {
-				t.Fatalf("NewCaesarCipher() failed unexpectedly with key: %d", tt.key)
-			}
-
-			got := cipher.SubstitutionTable[tt.source]
-			if got != tt.want {
-				t.Errorf("Substitution = %v, want %v", got, tt.want)
-			}
-		})
-	}
-
-	reverseTests := []struct {
-		name   string
-		key    int
-		source byte
-		want   byte
-	}{
-		{
-			name:   "reverse normal 2",
-			key:    28,
-			source: 'g',
-			want:   'e',
-		},
-		{
-			name:   "reverse normal 1",
-			key:    20,
-			source: 'A',
-			want:   'G',
-		},
-		{
-			name:   "reverse no change 1",
-			key:    0,
-			source: 'e',
-			want:   'e',
-		},
-		{
-			name:   "reverse no change 2",
-			key:    26,
-			source: 'e',
-			want:   'e',
-		},
-		{
-			name:   "reverse non-alpha 1",
-			key:    1234,
-			source: ':',
-			want:   ':',
-		},
-		{
-			name:   "reverse non-alpha 2",
-			key:    1234,
-			source: ' ',
-			want:   ' ',
-		},
-	}
-
-	for _, tt := range reverseTests {
-		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewCaesarCipher(tt.key)
-			if err != nil {
-				t.Fatalf("NewCaesarCipher() failed unexpectedly with key: %d", tt.key)
-			}
-
-			got := cipher.ReverseTable[tt.source]
-			if got != tt.want {
-				t.Errorf("Reverse = %v, want %v", got, tt.want)
-			}
-		})
-	}
-
-	t.Run("roundtrip", func(t *testing.T) {
-		cipher, err := ciphers.NewCaesarCipher(3)
-		if err != nil {
-			t.Fatalf("NewCaesarCipher() failed unexpectedly with key: %d", 3)
-		}
-
-		for i := range 256 {
-			encrypted := cipher.SubstitutionTable[i]
-			if cipher.ReverseTable[encrypted] != byte(i) {
-				t.Errorf("roundtrip failed for byte %d", i)
-			}
-		}
-	})
-}
-
 func TestCaesarCipher_EncryptBlock(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -261,10 +90,9 @@ func TestCaesarCipher_EncryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cc, err := ciphers.NewCaesarCipher(tt.key)
-			if err != nil {
-				t.Fatalf("could not construct receiver type: %v", err)
-			}
+			cc := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+				Key: tt.key,
+			})
 
 			gotErr := cc.EncryptBlock(tt.dst, tt.src)
 			if gotErr != nil {
@@ -368,10 +196,9 @@ func TestCaesarCipher_DecryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cc, err := ciphers.NewCaesarCipher(tt.key)
-			if err != nil {
-				t.Fatalf("could not construct receiver type: %v", err)
-			}
+			cc := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+				Key: tt.key,
+			})
 
 			gotErr := cc.DecryptBlock(tt.dst, tt.src)
 			if gotErr != nil {
@@ -437,14 +264,17 @@ func TestCaesarCipher_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, _ := ciphers.NewCaesarCipher(tt.key)
+			cc := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+				Key: tt.key,
+			})
+
 			src := []byte(tt.message)
 			dst := make([]byte, len(src))
 
-			if err := cipher.EncryptBlock(dst, src); err != nil {
+			if err := cc.EncryptBlock(dst, src); err != nil {
 				t.Fatalf("EncryptBlock() failed: %v", err)
 			}
-			if err := cipher.DecryptBlock(src, dst); err != nil {
+			if err := cc.DecryptBlock(src, dst); err != nil {
 				t.Fatalf("DecryptBlock() failed: %v", err)
 			}
 

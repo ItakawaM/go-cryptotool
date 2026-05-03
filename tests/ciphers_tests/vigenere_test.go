@@ -42,7 +42,9 @@ func TestNormalizeVigenereKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := ciphers.NormalizeVigenereKey(tt.key)
+			got, gotErr := ciphers.NormalizeVigenereKey(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("NormalizeVigenereKey() failed: %v", gotErr)
@@ -96,7 +98,9 @@ func TestNewVigenereCipher(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotErr := ciphers.NewVigenereCipher(tt.key)
+			_, gotErr := ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("NewVigenereCipher() failed: %v", gotErr)
@@ -173,7 +177,9 @@ func TestVigenereCipher_EncryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewVigenereCipher(tt.key)
+			cipher, err := ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -259,7 +265,9 @@ func TestVigenereCipher_DecryptBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := ciphers.NewVigenereCipher(tt.key)
+			cipher, err := ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -328,7 +336,9 @@ func TestVigenereCipher_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, _ := ciphers.NewVigenereCipher(tt.key)
+			cipher, _ := ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+				Key: tt.key,
+			})
 			src := []byte(tt.message)
 			dst := make([]byte, len(src))
 

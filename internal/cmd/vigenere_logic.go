@@ -26,30 +26,32 @@ type vigenereFactory struct {
 	autokey bool
 }
 
-func (vF *vigenereFactory) name() string {
-	if vF.autokey {
+func (vf *vigenereFactory) name() string {
+	if vf.autokey {
 		return "vigenere-autokey"
 	}
 
 	return "vigenere"
 }
 
-func (vF *vigenereFactory) parseKey(keyStr string) error {
-	normalizedKey, err := ciphers.NormalizeVigenereKey([]byte(keyStr))
+func (vf *vigenereFactory) parseKey(keyStr string) error {
+	normalizedKey, err := ciphers.NormalizeVigenereKey(&ciphers.VigenereKey{
+		Key: []byte(keyStr),
+	})
 	if err != nil {
 		return err
 	}
-	vF.key = normalizedKey
+	vf.key = normalizedKey
 
 	return nil
 }
 
-func (vF *vigenereFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
-	if vF.autokey {
-		return ciphers.NewVigenereAutoKeyCipherNormalized(vF.key), nil
+func (vf *vigenereFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
+	if vf.autokey {
+		return ciphers.NewVigenereAutoKeyCipherNormalized(vf.key), nil
 	}
 
-	return ciphers.NewVigenereCipherNormalized(vF.key), nil
+	return ciphers.NewVigenereCipherNormalized(vf.key), nil
 }
 
 func vigenereBruteforcePreRunE(command *cobra.Command, args []string, params *vigenereBruteforceParams) error {
@@ -70,7 +72,9 @@ func vigenereBruteforcePreRunE(command *cobra.Command, args []string, params *vi
 
 	dictionary := make(map[string]struct{})
 	for word := range strings.FieldsSeq(strings.ToLower(string(rawDictionary))) {
-		_, err := ciphers.NormalizeVigenereKey([]byte(word))
+		_, err := ciphers.NormalizeVigenereKey(&ciphers.VigenereKey{
+			Key: []byte(word)},
+		)
 		if err != nil {
 			continue
 		}
@@ -140,9 +144,13 @@ func vigenereBruteforceRunE(args []string, params *vigenereBruteforceParams, aut
 func getVigenereVariant(key string, autokey bool) ciphers.BlockCipher {
 	var vigenereVariant ciphers.BlockCipher
 	if autokey {
-		vigenereVariant, _ = ciphers.NewVigenereAutoKeyCipher([]byte(key))
+		vigenereVariant, _ = ciphers.NewVigenereAutoKeyCipher(&ciphers.VigenereKey{
+			Key: []byte(key),
+		})
 	} else {
-		vigenereVariant, _ = ciphers.NewVigenereCipher([]byte(key))
+		vigenereVariant, _ = ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+			Key: []byte(key),
+		})
 	}
 
 	return vigenereVariant

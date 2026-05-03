@@ -79,7 +79,9 @@ func (analyzer *VigenereAnalyzer) AnalyzeBuffer(buffer []byte) ([]VigenereResult
 			possibleKey[i] = (shiftResults[0].Key + 'a')
 		}
 
-		cipher, err := ciphers.NewVigenereCipher(possibleKey)
+		cipher, err := ciphers.NewVigenereCipher(&ciphers.VigenereKey{
+			Key: possibleKey,
+		})
 		if err != nil {
 			return nil, err
 		}
