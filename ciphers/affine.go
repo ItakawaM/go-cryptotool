@@ -39,10 +39,10 @@ type AffineKey struct {
 /*
 Key returns the cipher's Key Matrix and the key vector.
 */
-func (hc *AffineCipher) Key() AffineKey {
+func (ac *AffineCipher) Key() AffineKey {
 	return AffineKey{
-		MatrixKey: hc.matrixKey.Data,
-		VectorKey: hc.vectorKey,
+		MatrixKey: ac.matrixKey.Data,
+		VectorKey: ac.vectorKey,
 	}
 }
 
@@ -51,10 +51,10 @@ InverseKey returns the inverse matrix to cipher's Key Matrix and the key vector,
 
 Key x Inverse = Identity Matrix
 */
-func (hc *AffineCipher) InverseKey() AffineKey {
+func (ac *AffineCipher) InverseKey() AffineKey {
 	return AffineKey{
-		MatrixKey: hc.inverseMatrixKey.Data,
-		VectorKey: hc.vectorKey,
+		MatrixKey: ac.inverseMatrixKey.Data,
+		VectorKey: ac.vectorKey,
 	}
 }
 
@@ -168,6 +168,10 @@ Returns an error if the key matrix is not square or not invertible
 or if it doesn't match sizes with key vector.
 */
 func NewAffineCipher(key *AffineKey) (*AffineCipher, error) {
+	if key == nil {
+		return nil, fmt.Errorf("key must not be nil")
+	}
+
 	if len(key.VectorKey) != len(key.MatrixKey) {
 		return nil, fmt.Errorf("key vector must be of length matrix key, got vector = %d matrix = %d",
 			len(key.VectorKey), len(key.MatrixKey))
@@ -200,7 +204,7 @@ IsInPlace returns whether the cipher can perform encryption/decryption in-place.
 
 Affine cipher supports in-place operations.
 */
-func (hc *AffineCipher) IsInPlace() bool {
+func (ac *AffineCipher) IsInPlace() bool {
 	return true
 }
 
@@ -259,14 +263,14 @@ src and dst can alias, because Affine cipher performs operations in-place.
 
 src and dst must be the same length.
 */
-func (hc *AffineCipher) EncryptBlock(dst []byte, src []byte) error {
-	size := hc.matrixKey.Rows()
+func (ac *AffineCipher) EncryptBlock(dst []byte, src []byte) error {
+	size := ac.matrixKey.Rows()
 	return applyAffineTransformation(dst, src, size, func(textVector []int, output []int) {
 		for i := range size {
 			for j := range size {
-				output[i] = mathutils.Mod26(output[i] + hc.matrixKey.Data[i][j]*textVector[j])
+				output[i] = mathutils.Mod26(output[i] + ac.matrixKey.Data[i][j]*textVector[j])
 			}
-			output[i] = mathutils.Mod26(output[i] + hc.vectorKey[i])
+			output[i] = mathutils.Mod26(output[i] + ac.vectorKey[i])
 		}
 	})
 }
@@ -283,16 +287,16 @@ src and dst can alias, because Affine cipher performs operations in-place.
 
 src and dst must be the same length.
 */
-func (hc *AffineCipher) DecryptBlock(dst []byte, src []byte) error {
-	size := hc.inverseMatrixKey.Rows()
+func (ac *AffineCipher) DecryptBlock(dst []byte, src []byte) error {
+	size := ac.inverseMatrixKey.Rows()
 	return applyAffineTransformation(dst, src, size, func(textVector []int, output []int) {
 		for i := range size {
-			textVector[i] = mathutils.Mod26(textVector[i] - hc.vectorKey[i])
+			textVector[i] = mathutils.Mod26(textVector[i] - ac.vectorKey[i])
 		}
 
 		for i := range size {
 			for j := range size {
-				output[i] = mathutils.Mod26(output[i] + hc.inverseMatrixKey.Data[i][j]*textVector[j])
+				output[i] = mathutils.Mod26(output[i] + ac.inverseMatrixKey.Data[i][j]*textVector[j])
 			}
 		}
 	})
