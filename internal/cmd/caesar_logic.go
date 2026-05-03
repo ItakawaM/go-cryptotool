@@ -19,24 +19,24 @@ type caesarFactory struct {
 	key int
 }
 
-func (cF *caesarFactory) name() string {
+func (cf *caesarFactory) name() string {
 	return "caesar"
 }
 
-func (cF *caesarFactory) parseKey(keyStr string) error {
+func (cf *caesarFactory) parseKey(keyStr string) error {
 	key, err := strconv.Atoi(keyStr)
 	if err != nil {
 		return err
-	} else if key < 0 {
-		return fmt.Errorf("key can not be negative: %d", key)
 	}
-	cF.key = key
+	cf.key = key
 
 	return nil
 }
 
-func (cF *caesarFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
-	return ciphers.NewCaesarCipher(cF.key)
+func (cf *caesarFactory) newCipher(_ int) (ciphers.BlockCipher, error) {
+	return ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+		Key: cf.key,
+	}), nil
 }
 
 func caesarBruteforcePreRunE(command *cobra.Command, params *blockCipherParams, args []string) error {
@@ -68,13 +68,11 @@ func caesarBruteforceRunE(args []string, params *blockCipherParams) error {
 		tab := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(tab, "Key\tPlaintext")
 		for i := range 26 {
-			caesarCipher, err := ciphers.NewCaesarCipher(i)
-			if err != nil {
-				return err
-			}
+			caesarCipher := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+				Key: i,
+			})
 
-			err = caesarCipher.DecryptBlock(dst, src)
-			if err != nil {
+			if err := caesarCipher.DecryptBlock(dst, src); err != nil {
 				return err
 			}
 
@@ -91,12 +89,11 @@ func caesarBruteforceRunE(args []string, params *blockCipherParams) error {
 		blockSizeBytes := params.blockSize * 1024
 		blockEngine := engine.NewBlockEngine(blockSizeBytes, params.numCPU)
 		for i := range 26 {
-			caesarCipher, err := ciphers.NewCaesarCipher(i)
-			if err != nil {
-				return err
-			}
+			caesarCipher := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+				Key: i,
+			})
 
-			if err = blockEngine.ProcessFile(caesarCipher, ciphers.Decrypt,
+			if err := blockEngine.ProcessFile(caesarCipher, ciphers.Decrypt,
 				inFilePath, filepath.Join(outFilePathFolder, fmt.Sprintf("key_%02d", i))); err != nil {
 				return err
 			}

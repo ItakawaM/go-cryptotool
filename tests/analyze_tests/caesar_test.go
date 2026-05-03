@@ -101,7 +101,9 @@ whatsoever.
 	analyzer := analyze.NewCaesarAnalyzer()
 	buffer := make([]byte, len(plaintext))
 	for i := range 26 {
-		cipher, _ := ciphers.NewCaesarCipher(i)
+		cipher := ciphers.NewCaesarCipher(&ciphers.CaesarKey{
+			Key: i,
+		})
 		if err := cipher.EncryptBlock(buffer, plaintext); err != nil {
 			t.Fatalf("EncryptBlock() failed: %v", err)
 		}
