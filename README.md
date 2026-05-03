@@ -12,7 +12,7 @@ A Go library and CLI tool for classical cryptography and cryptanalysis. Provides
 
 **CLI**: `arcipher` command-line tool for encrypting, decrypting, and analyzing text and files with support for concurrent block processing.
 
-### Supported Ciphers
+### Ciphers
 
 | Cipher Name        | Cipher Type                 | Variant       |
 |--------------------|-----------------------------|---------------|
@@ -22,18 +22,22 @@ A Go library and CLI tool for classical cryptography and cryptanalysis. Provides
 | Vigenere           | Polyalphabetic Substitution | Autokey (-a)  |
 | Affine             | Polygraphic Substituion     | Hill          |
 
-### Supported Analyzers
+### Analyzers
 
 | Analyzer Name                     | Ciphers              |
 |-----------------------------------|----------------------|
 | Frequency Analysis                | Caesar               |
 | Kasiski Test & Frequency Analysis | Vigenere             |
 
-### Supported Padding
+### Padding
 
 | Padding Scheme |
 |----------------|
 | ISOIEC7816     |
+
+### Math Utilities
+
+Matrix operations and modular arithmetic utilities for classical cipher implementations.
 
 ## Installation
 
